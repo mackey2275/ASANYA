@@ -1,0 +1,14 @@
+{
+  "name": "asana-style-task-manager-v156-tests",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "serve": "node scripts/static-server.cjs",
+    "test": "playwright test",
+    "test:phase1": "playwright test tests/phase1.spec.js",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "playwright": "1.62.0"
+  }
+}

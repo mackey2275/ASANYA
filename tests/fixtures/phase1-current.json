@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.5",
+  "items": [
+    {"id":"parent","parentId":"","title":"親タスク","state":"未着手","completed":false,"due":"","sortOrder":1000,"dependencies":[]},
+    {"id":"child","parentId":"parent","title":"子タスク","state":"進行中","completed":false,"due":"","sortOrder":1000,"dependencies":[]},
+    {"id":"done-flag","parentId":"","title":"フラグ完了","state":"未着手","completed":true,"due":"2020-01-01","sortOrder":2000,"dependencies":[]},
+    {"id":"done-state","parentId":"","title":"状態完了","state":"完了","completed":false,"due":"2020-01-01","sortOrder":3000,"dependencies":[]},
+    {"id":"blank-state","parentId":"","title":"ブランク状態","state":"","completed":false,"due":"2099-01-01","sortOrder":4000,"dependencies":[]}
+  ]
+}
