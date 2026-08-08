@@ -23,7 +23,9 @@ try {
   $phase2FailureExitCode = $LASTEXITCODE
   & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase3a2-input-search-reg.spec.js --reporter=list
   $phase3A2ExitCode = $LASTEXITCODE
-  $codes = @($phase1ExitCode,$phase2DbExitCode,$phase2MoveExitCode,$phase2FailureExitCode,$phase3A2ExitCode)
+  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase3b.spec.js --reporter=list
+  $phase3BExitCode = $LASTEXITCODE
+  $codes = @($phase1ExitCode,$phase2DbExitCode,$phase2MoveExitCode,$phase2FailureExitCode,$phase3A2ExitCode,$phase3BExitCode)
   $testExitCode = if (($codes | Where-Object { $_ -ne 0 }).Count) { 1 } else { 0 }
 } finally {
   if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
