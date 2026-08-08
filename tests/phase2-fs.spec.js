@@ -70,6 +70,17 @@ test('SAVE-05: 未保存変更と外部更新の競合で自動保存を停止',
   await page.waitForTimeout(2200); const disk=await fileJson(page,'db'); expect(disk.items[0].id).toBe('external');
 });
 
+test('SAVE-06: 外部更新だけの状態から最新DBを安全に再読込', async ({page}) => {
+  await makeFile(page,'db','external-only.json',json([task('before','更新前')])); await openDb(page,'db');
+  await page.evaluate(() => __fsMock.mutate('db', JSON.stringify({schema_version:'1.5',items:[{id:'after',parentId:'',state:'',title:'外部更新後',completed:false,due:'',sortOrder:1000,dependencies:[]}]})));
+  expect(await page.evaluate(() => checkExternalUpdate())).toBeTruthy();
+  expect(await page.evaluate(() => ({conflictDetected,dirty,saveState}))).toEqual({conflictDetected:true,dirty:false,saveState:'external'});
+  await page.getByRole('button',{name:'最新DBを再読込'}).click();
+  await expect.poll(() => page.evaluate(() => data.items.map(x=>x.id))).toEqual(['after']);
+  await expect(page.locator('#row_after .titleText')).toHaveText('外部更新後');
+  expect(await page.evaluate(() => ({conflictDetected,dirty,currentDbName}))).toEqual({conflictDetected:false,dirty:false,currentDbName:'external-only.json'});
+});
+
 test('DB-12: コピー保存は別ハンドルへ書き、現在DBを切り替えない', async ({page}) => {
   await makeFile(page,'source','current.json',json([task('t1','コピー対象')])); await makeFile(page,'copy','copy.json',''); await openDb(page,'source');
   await page.evaluate(() => __fsMock.queueSave('copy')); await page.getByRole('button',{name:'現在DBのコピーを保存'}).click();
@@ -87,6 +98,21 @@ for (const selected of ['A','A1','A11']) {
     expect((await fileJson(page,'source')).items.map(x=>x.id)).toEqual(['B']); expect(await page.evaluate(() => currentDbHandle.__mockId)).toBe('source');
   });
 }
+
+test('MOVE-04: 移動後もトップレベル化と全parentId関係を維持', async ({page}) => {
+  await prepareMove(page); await selectTask(page,'A11'); await queueOpen(page,'target'); page.once('dialog',d=>d.accept()); await moveButton(page);
+  const moved=(await fileJson(page,'target')).items; const parents=Object.fromEntries(moved.map(x=>[x.id,x.parentId]));
+  expect(parents).toEqual({A:'',A1:'A',A11:'A1',A2:'A'});
+  expect(moved.map(x=>x.id).sort()).toEqual(['A','A1','A11','A2']);
+});
+
+test('MOVE-05: 移動対象部分木内部の依存関係を維持', async ({page}) => {
+  const items=await sourceItems(); items.find(x=>x.id==='A2').dependencies=[{task_id:'A1',type:'finish_to_start'}];
+  items.find(x=>x.id==='A11').dependencies=[{task_id:'A',type:'finish_to_finish'}];
+  await prepareMove(page,items); await selectTask(page,'A'); await queueOpen(page,'target'); page.once('dialog',d=>d.accept()); await moveButton(page);
+  const moved=(await fileJson(page,'target')).items; expect(moved.find(x=>x.id==='A2').dependencies).toEqual([{task_id:'A1',type:'finish_to_start'}]);
+  expect(moved.find(x=>x.id==='A11').dependencies).toEqual([{task_id:'A',type:'finish_to_finish'}]);
+});
 
 test('MOVE-06, MOVE-08: 境界依存警告を表示しキャンセル時は双方不変', async ({page}) => {
   const items=await sourceItems(); items.find(x=>x.id==='B').dependencies=[{task_id:'A',type:'finish_to_start'}]; await prepareMove(page,items);
@@ -109,6 +135,26 @@ test('MOVE-10, MOVE-11, MOVE-14: 同一DB・重複ID・新Schemaを無変更で�
   await makeFile(page,'duplicate','duplicate.json',json([task('A','既存A')])); await queueOpen(page,'duplicate'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('同じID'); await d.accept(); await moving;
   await makeFile(page,'future','future.json',json([], '1.6')); await queueOpen(page,'future'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('このバージョンでは扱えません'); await d.accept(); await moving;
   expect((await fileJson(page,'source')).items).toHaveLength(5); expect((await calls(page)).filter(x=>x.op==='requestPermission'&&x.id==='future')).toHaveLength(0);
+});
+
+test('MOVE-15: 旧Schema移動先へ安全に移動し1.5で保存', async ({page}) => {
+  const existing=[task('legacy-existing','既存データ',{owner:'既存担当',summary:'既存概要'})];
+  await makeFile(page,'source','source.json',json(await sourceItems())); await makeFile(page,'legacy-target','legacy-target.json',json(existing,'1.1')); await openDb(page,'source');
+  await selectTask(page,'A'); await queueOpen(page,'legacy-target'); page.once('dialog',d=>d.accept()); await moveButton(page);
+  const saved=await fileJson(page,'legacy-target'); expect(saved.schema_version).toBe('1.5');
+  expect(saved.items.find(x=>x.id==='legacy-existing')).toMatchObject({id:'legacy-existing',title:'既存データ',owner:'既存担当',summary:'既存概要'});
+  expect(saved.items.map(x=>x.id).sort()).toEqual(['A','A1','A11','A2','legacy-existing']);
+});
+
+test('MOVE-16: 移動先選択後の外部更新を検知して双方を変更せず中止', async ({page}) => {
+  const targetBefore=json([task('target-before','移動先既存')]); const targetAfter=json([task('external-added','外部更新データ')]);
+  await makeFile(page,'source','source.json',json(await sourceItems()));
+  await makeFile(page,'target','target.json',targetBefore,{mutateAfterGetFileCall:1,mutateText:targetAfter}); await openDb(page,'source');
+  const sourceBefore=await fileJson(page,'source'); await selectTask(page,'A'); await queueOpen(page,'target');
+  const dialogs=[]; page.on('dialog',async d=>{dialogs.push(d.message()); await d.accept();}); await moveButton(page);
+  await expect.poll(()=>dialogs.some(x=>x.includes('選択後に更新'))).toBeTruthy();
+  expect(await fileJson(page,'source')).toEqual(sourceBefore); expect(await fileJson(page,'target')).toEqual(JSON.parse(targetAfter));
+  expect((await calls(page)).filter(x=>['createWritable','write','close'].includes(x.op)&&x.id==='target')).toHaveLength(0);
 });
 
 test('MOVE-12, MOVE-13: ドラフト中・外部更新競合中はpicker前に拒否', async ({page}) => {

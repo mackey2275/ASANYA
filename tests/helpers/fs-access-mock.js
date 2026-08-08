@@ -14,9 +14,12 @@ async function installFsAccessMock(page) {
         kind: 'file',
         get name() { return state(id).name; },
         async getFile() {
-          const s = state(id); record('getFile', id);
+          const s = state(id); s.getFileCount=(s.getFileCount||0)+1; record('getFile', id);
           if (s.failGetFile) throw error('NotReadableError', 'mock getFile failure');
           const text = s.text, modified = s.lastModified;
+          if (s.mutateAfterGetFileCall===s.getFileCount) {
+            s.text = s.mutateText; s.lastModified = ++clock; record('externalMutateAfterGetFile', id);
+          }
           return { name:s.name, size:new Blob([text]).size, lastModified:modified, type:'application/json', async text(){ return text; } };
         },
         async createWritable() {
@@ -57,7 +60,8 @@ async function installFsAccessMock(page) {
           readPermission:options.readPermission||'granted', writePermission:options.writePermission||'granted',
           requestReadResult:options.requestReadResult||'granted', requestWriteResult:options.requestWriteResult||'granted',
           failGetFile:false, failCreateWritable:false, failWrite:false, failClose:false,
-          failCreateOnCall:0, failWriteOnCall:0, failCloseOnCall:0, createCount:0, writeCount:0, closeCount:0, ...options });
+          failCreateOnCall:0, failWriteOnCall:0, failCloseOnCall:0, createCount:0, writeCount:0, closeCount:0,
+          getFileCount:0, mutateAfterGetFileCall:0, mutateText:'', ...options });
         return handle(id);
       },
       queueOpen(id) { openQueue.push(id); }, queueSave(id) { saveQueue.push(id); },
