@@ -6,7 +6,8 @@
     "serve": "node scripts/static-server.cjs",
     "test": "playwright test",
     "test:phase1": "playwright test tests/phase1.spec.js",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "test:all:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-all-tests.ps1"
   },
   "devDependencies": {
     "playwright": "1.62.0"
