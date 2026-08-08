@@ -13,15 +13,17 @@ try {
     } catch { Start-Sleep -Milliseconds 100 }
   }
   if (-not $ready) { throw 'Local static HTTP server did not start.' }
-  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase1.spec.js
+  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase1.spec.js --reporter=list
   $phase1ExitCode = $LASTEXITCODE
-  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase2-fs.spec.js --grep 'DB-|SAVE-'
+  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase2-fs.spec.js --grep 'DB-|SAVE-' --reporter=list
   $phase2DbExitCode = $LASTEXITCODE
-  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase2-fs.spec.js --grep 'MOVE-'
+  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase2-fs.spec.js --grep 'MOVE-' --reporter=list
   $phase2MoveExitCode = $LASTEXITCODE
-  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase2-fs.spec.js --grep-invert 'DB-|SAVE-|MOVE-'
+  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase2-fs.spec.js --grep-invert 'DB-|SAVE-|MOVE-' --reporter=list
   $phase2FailureExitCode = $LASTEXITCODE
-  $codes = @($phase1ExitCode,$phase2DbExitCode,$phase2MoveExitCode,$phase2FailureExitCode)
+  & "$runtime\node\bin\node.exe" "$runtime\node\node_modules\playwright\cli.js" test tests/phase3a2-input-search-reg.spec.js --reporter=list
+  $phase3A2ExitCode = $LASTEXITCODE
+  $codes = @($phase1ExitCode,$phase2DbExitCode,$phase2MoveExitCode,$phase2FailureExitCode,$phase3A2ExitCode)
   $testExitCode = if (($codes | Where-Object { $_ -ne 0 }).Count) { 1 } else { 0 }
 } finally {
   if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
