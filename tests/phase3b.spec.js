@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
-const app='/asana_style_task_manager_v156.html';
+const app='/asana_style_task_manager_v157.html';
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 const json=items=>JSON.stringify({schema_version:'1.5',items});
 
@@ -12,7 +12,7 @@ async function boot(page){
 async function setData(page,items){await page.evaluate(async items=>applyJsonObject({schema_version:'1.5',items},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}),items);}
 async function makeFile(page,id,name,text){await page.evaluate(({id,name,text})=>__fsMock.create(id,{name,text}),{id,name,text});}
 async function queueOpen(page,id){await page.evaluate(id=>__fsMock.queueOpen(id),id);}
-async function openDb(page,id){await queueOpen(page,id);await page.getByRole('button',{name:'別DB読込'}).click();await expect(page.locator('#dbLoadingBack')).toBeHidden();}
+async function openDb(page,id){await queueOpen(page,id);await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();}
 async function snapshot(page,id){return page.evaluate(id=>__fsMock.snapshot(id).text,id);}
 async function dialogFrom(page,action,accept=true){const pending=page.waitForEvent('dialog'),result=action(),d=await pending,msg=d.message();accept?await d.accept():await d.dismiss();await result;return msg;}
 async function startDraft(page,key='Enter'){await page.locator('#row_A').click();await page.keyboard.press(key);return page.evaluate(()=>draftTaskId);}

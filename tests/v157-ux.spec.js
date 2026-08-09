@@ -1,0 +1,106 @@
+const {test,expect}=require('playwright/test');
+const {installFsAccessMock}=require('./helpers/fs-access-mock');
+
+const app='/asana_style_task_manager_v157.html';
+const task=(id,title=id)=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[]});
+const json=items=>JSON.stringify({schema_version:'1.5',items});
+
+async function boot(page){
+  await installFsAccessMock(page);
+  await page.goto(app);
+  await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name);});
+  await page.reload();
+}
+async function makeFile(page,id,options={}){await page.evaluate(({id,options})=>__fsMock.create(id,options),{id,options});}
+async function beginRestore(page,id,name){
+  await page.evaluate(({id,name})=>{
+    const handle=__fsMock.handle(id);
+    getLastDbRecord=async()=>({name,handle});
+    window.__restorePromise=restoreLastDbOnStartup();
+  },{id,name});
+}
+
+test.beforeEach(async({page})=>boot(page));
+
+test('v1.5.7 DB読込導線: 未読込は強調、キャンセルと失敗でも維持',async({page})=>{
+  const button=page.locator('#dbReadBtn');await expect(button).toHaveText('DB読込');await expect(button).toHaveClass(/dbLoadPrimary/);
+  const colors=await button.evaluate(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color,border:getComputedStyle(el).borderColor}));expect(colors).toEqual({background:'rgb(255, 92, 154)',color:'rgb(255, 255, 255)',border:'rgb(217, 60, 115)'});
+  await expect(page.locator('#dbSaveBtn')).toHaveText('DBに保存');await expect(page.locator('#newDbBtn')).toBeHidden();
+  await button.click();await expect(button).toHaveText('DB読込');await expect(button).toHaveClass(/dbLoadPrimary/);
+  await makeFile(page,'broken',{name:'broken.json',text:'{"schema_version":"1.5","items":'});await page.evaluate(()=>__fsMock.queueOpen('broken'));
+  const pending=page.waitForEvent('dialog');const click=button.click();const dialog=await pending;expect(dialog.message()).toContain('JSON読込に失敗');await dialog.accept();await click;
+  await expect(button).toHaveText('DB読込');await expect(button).toHaveClass(/dbLoadPrimary/);expect(await page.evaluate(()=>dbDataLoaded)).toBe(false);
+});
+
+test('v1.5.7 DB読込導線: 正常読込後は通常の別DB読込、キャンセルでも維持',async({page})=>{
+  await makeFile(page,'loaded',{name:'loaded.json',text:json([task('loaded-task')])});await page.evaluate(()=>__fsMock.queueOpen('loaded'));const button=page.locator('#dbReadBtn');await button.click();await expect(page.locator('#dbLoadingBack')).toBeHidden();
+  await expect(button).toHaveText('別DB読込');await expect(button).not.toHaveClass(/dbLoadPrimary/);await expect(page.locator('#dbSaveBtn')).toHaveText('現在DBのコピーを保存');await expect(page.locator('#newDbBtn')).toBeVisible();expect(await page.evaluate(()=>({loaded:dbDataLoaded,id:currentDbHandle.__mockId}))).toEqual({loaded:true,id:'loaded'});
+  await button.click();await expect(button).toHaveText('別DB読込');await expect(button).not.toHaveClass(/dbLoadPrimary/);expect(await page.evaluate(()=>data.items.map(x=>x.id))).toEqual(['loaded-task']);
+});
+
+test('v1.5.7 選択ボタン: オレンジを淡くして選択ロジックを維持',async({page})=>{
+  for(const id of ['#vOpen','#mPersonal','#sTree']){await expect(page.locator(id)).toHaveClass(/on/);const style=await page.locator(id).evaluate(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color,border:getComputedStyle(el).borderColor}));expect(style).toEqual({background:'rgb(255, 240, 191)',color:'rgb(96, 76, 0)',border:'rgb(229, 199, 107)'})}
+  await page.locator('#vAll').click();await expect(page.locator('#vAll')).toHaveClass(/on/);await expect(page.locator('#vOpen')).not.toHaveClass(/on/);
+});
+
+test('v1.5.7 新しいDB: Cancelは不変、OKは元DBを残して空の未保存DBへ移行し新規保存',async({page})=>{
+  await makeFile(page,'source',{name:'source.json',text:json([task('source-task')])});await page.evaluate(()=>__fsMock.queueOpen('source'));await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();
+  const sourceBefore=await page.evaluate(()=>__fsMock.snapshot('source').text);let pending=page.waitForEvent('dialog');let click=page.locator('#newDbBtn').click();let dialog=await pending;expect(dialog.message()).toContain('現在のDBファイル自体は削除されません');await dialog.dismiss();await click;
+  expect(await page.evaluate(()=>({loaded:dbDataLoaded,name:currentDbName,ids:data.items.map(x=>x.id)}))).toEqual({loaded:true,name:'source.json',ids:['source-task']});expect(await page.evaluate(()=>__fsMock.snapshot('source').text)).toBe(sourceBefore);
+  pending=page.waitForEvent('dialog');click=page.locator('#newDbBtn').click();dialog=await pending;await dialog.accept();await click;await expect.poll(()=>page.evaluate(()=>dbDataLoaded)).toBe(false);
+  expect(await page.evaluate(()=>({name:currentDbName,handle:currentDbHandle,items:data.items,dirty,saveState,recent:recentDbs.map(x=>x.name)}))).toEqual({name:'未読込',handle:null,items:[],dirty:true,saveState:'dirty',recent:['source.json']});expect(await page.evaluate(()=>__fsMock.snapshot('source').text)).toBe(sourceBefore);
+  await expect(page.locator('#dbReadBtn')).toHaveText('DB読込');await expect(page.locator('#dbSaveBtn')).toHaveText('DBに保存');await expect(page.locator('#newDbBtn')).toBeHidden();
+  await makeFile(page,'new',{name:'new-db.json',text:''});await page.evaluate(()=>__fsMock.queueSave('new'));await page.locator('#dbSaveBtn').click();await expect.poll(()=>page.evaluate(()=>dbDataLoaded)).toBe(true);
+  expect(await page.evaluate(()=>JSON.parse(__fsMock.snapshot('new').text))).toEqual({schema_version:'1.5',items:[]});await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbSaveBtn')).toHaveText('現在DBのコピーを保存');await expect(page.locator('#newDbBtn')).toBeVisible();
+});
+
+test('v1.5.7 新しいDB: 未保存変更の保存失敗時は現在DBを維持',async({page})=>{
+  await makeFile(page,'source',{name:'dirty-source.json',text:json([task('source-task','保存前')])});await page.evaluate(()=>__fsMock.queueOpen('source'));await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();
+  await page.evaluate(()=>{chg(0,'title','未保存の編集');__fsMock.configure('source',{failWrite:true})});const pending=page.waitForEvent('dialog');const click=page.locator('#newDbBtn').click();const dialog=await pending;await dialog.accept();await click;
+  await expect.poll(()=>page.evaluate(()=>saveState)).toBe('error');expect(await page.evaluate(()=>({loaded:dbDataLoaded,name:currentDbName,id:currentDbHandle.__mockId,title:data.items[0].title,dirty}))).toEqual({loaded:true,name:'dirty-source.json',id:'source',title:'未保存の編集',dirty:true});await expect(page.locator('#newDbBtn')).toBeVisible();
+});
+
+test('v1.5.7 DB読込導線: fallback読込はハンドルなしでも読込済み',async({page})=>{
+  await page.locator('#jsonFile').setInputFiles({name:'fallback.json',mimeType:'application/json',buffer:Buffer.from(json([task('fallback-task')]))});await expect(page.locator('#dbLoadingBack')).toBeHidden();
+  await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbReadBtn')).not.toHaveClass(/dbLoadPrimary/);
+  expect(await page.evaluate(()=>({loaded:dbDataLoaded,handle:currentDbHandle,name:currentDbName,ids:data.items.map(x=>x.id)}))).toEqual({loaded:true,handle:null,name:'fallback.json',ids:['fallback-task']});
+});
+
+test('v1.5.7 UI-05: KPIのラベルと件数は同一行構造',async({page})=>{
+  await page.evaluate(items=>applyJsonObject({schema_version:'1.5',items},'Playwright','kpi.json',null,{remember:false,writePermissionGranted:false}),[task('open'),{...task('late'),due:'2020-01-01'}]);
+  const cards=page.locator('#kpis .card');await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0).locator('.cn')).toHaveText('未完了');await expect(cards.nth(0).locator('.cv')).toHaveText('2件');
+  await expect(cards.nth(1).locator('.cn')).toHaveText('期限超過');await expect(cards.nth(1).locator('.cv')).toHaveText('1件');
+  for(let i=0;i<2;i++){const layout=await cards.nth(i).evaluate(el=>({display:getComputedStyle(el).display,tags:[...el.children].map(x=>x.tagName),tops:[...el.children].map(x=>Math.round(x.getBoundingClientRect().top))}));expect(layout.display).toBe('flex');expect(layout.tags).toEqual(['SPAN','SPAN']);expect(Math.abs(layout.tops[0]-layout.tops[1])).toBeLessThanOrEqual(5)}
+});
+
+test('v1.5.7 DB-02: 最近使用DB切替にもファイル名付き読込表示と最低時間',async({page})=>{
+  await makeFile(page,'recent',{name:'recent.json',text:json([task('recent-task')])});
+  await page.evaluate(()=>{recentDbs=[{name:'recent.json',handle:__fsMock.handle('recent'),updatedAt:Date.now()}];currentDbName='current.json';refreshDbStatus()});
+  const started=Date.now();await page.locator('.recentDbBtn',{hasText:'recent.json'}).click();
+  await expect(page.locator('#dbLoadingBack')).toBeVisible();await expect(page.locator('#dbLoadingFile')).toHaveText('recent.json');
+  await expect(page.locator('#dbLoadingBack')).toBeHidden();expect(Date.now()-started).toBeGreaterThanOrEqual(450);
+  await expect(page.locator('.dbName')).toHaveText('recent.json');expect(await page.evaluate(()=>data.items.map(x=>x.id))).toEqual(['recent-task']);
+});
+
+test('v1.5.7 SAVE-03: grantedなら前回DBを操作なしで中央表示付き自動再開',async({page})=>{
+  await makeFile(page,'last',{name:'last.json',text:json([task('last-task')]),readPermission:'granted',writePermission:'granted'});
+  const started=Date.now();await beginRestore(page,'last','last.json');await expect(page.locator('#dbLoadingBack')).toBeVisible();await expect(page.locator('#dbLoadingFile')).toHaveText('last.json');
+  await expect(page.locator('#dbLoadingBack')).toBeHidden();expect(Date.now()-started).toBeGreaterThanOrEqual(450);
+  await expect(page.getByRole('button',{name:'前回DBを再開'})).toHaveCount(0);await expect(page.locator('.dbName')).toHaveText('last.json');
+  await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbReadBtn')).not.toHaveClass(/dbLoadPrimary/);
+  expect(await page.evaluate(()=>({ids:data.items.map(x=>x.id),requests:__fsMock.calls().filter(x=>x.op==='requestPermission').length}))).toEqual({ids:['last-task'],requests:0});
+});
+
+test('v1.5.7 SAVE-03: prompt時だけ操作待ち、成功は直接再開、拒否は安全維持',async({page})=>{
+  await makeFile(page,'prompt',{name:'prompt.json',text:json([task('prompt-task')]),readPermission:'prompt',writePermission:'prompt',requestWriteResult:'granted'});
+  await beginRestore(page,'prompt','prompt.json');await expect(page.getByRole('button',{name:'前回DBを再開'})).toBeVisible();await expect(page.locator('.saveState')).toContainText('アクセス許可待ち');
+  expect(await page.evaluate(()=>__fsMock.calls().filter(x=>x.op==='requestPermission').length)).toBe(0);await expect(page.locator('.askBack')).toHaveCount(0);
+  await page.getByRole('button',{name:'前回DBを再開'}).click();await expect(page.locator('#dbLoadingBack')).toBeVisible();await expect(page.locator('#dbLoadingBack')).toBeHidden();
+  await expect(page.locator('.dbName')).toHaveText('prompt.json');expect(await page.evaluate(()=>__fsMock.calls().filter(x=>x.op==='requestPermission').length)).toBe(1);await expect(page.locator('.askBack')).toHaveCount(0);
+
+  await page.reload();await makeFile(page,'denied',{name:'denied.json',text:json([task('must-not-load')]),readPermission:'prompt',writePermission:'prompt',requestReadResult:'denied',requestWriteResult:'denied'});await beginRestore(page,'denied','denied.json');
+  await page.getByRole('button',{name:'前回DBを再開'}).click();await expect.poll(()=>page.evaluate(()=>__fsMock.calls().filter(x=>x.op==='requestPermission').length)).toBe(2);
+  expect(await page.evaluate(()=>({handle:currentDbHandle,writePermissionGranted,saveState,loaded:data.items.some(x=>x.id==='must-not-load')}))).toEqual({handle:null,writePermissionGranted:false,saveState:'resume',loaded:false});
+  await expect(page.getByRole('button',{name:'前回DBを再開'})).toBeVisible();await expect(page.locator('.askBack')).toHaveCount(0);
+});

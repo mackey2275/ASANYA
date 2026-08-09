@@ -1,7 +1,7 @@
 const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
-const app = '/asana_style_task_manager_v156.html';
+const app = '/asana_style_task_manager_v157.html';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -38,11 +38,11 @@ async function alertFrom(page, action) {
 test.beforeEach(async ({ page }) => open(page));
 
 test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) => {
-  await expect(page).toHaveTitle('ASANA風 v1.5.6');
-  await expect(page.locator('h1')).toContainText('ASANA風 v1.5.6');
+  await expect(page).toHaveTitle('ASANA風 v1.5.7');
+  await expect(page.locator('h1')).toContainText('ASANA風 v1.5.7');
   expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('1.5');
-  await expect(page.getByRole('button', { name: '現在DBのコピーを保存' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '別DB読込' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'DBに保存', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'DB読込', exact: true })).toBeVisible();
   await expect(page.getByText('JSON貼付読込', { exact: true })).toHaveCount(0);
   await page.locator('.dbDiag summary').click();
   await expect(page.locator('.dbDiag')).toContainText(/DBモード:[\s\S]*Schema:[\s\S]*最終読込:[\s\S]*最終保存:[\s\S]*保存結果:/);

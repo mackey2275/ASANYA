@@ -1,7 +1,7 @@
 const { test, expect } = require('playwright/test');
 const { installFsAccessMock } = require('./helpers/fs-access-mock');
 
-const app = '/asana_style_task_manager_v156.html';
+const app = '/asana_style_task_manager_v157.html';
 const json = (items, schema='1.5') => JSON.stringify({ schema_version:schema, items });
 const task = (id, title=id, extra={}) => ({ id, parentId:'', state:'', title, completed:false, due:'', sortOrder:1000, dependencies:[], ...extra });
 
@@ -14,7 +14,7 @@ async function boot(page) {
 async function makeFile(page, id, name, text, options={}) { await page.evaluate(({id,name,text,options}) => __fsMock.create(id,{name,text,...options}), {id,name,text,options}); }
 async function queueOpen(page,id) { await page.evaluate(id => __fsMock.queueOpen(id), id); }
 async function openDb(page,id) {
-  await queueOpen(page,id); await page.getByRole('button',{name:'別DB読込'}).click();
+  await queueOpen(page,id); await page.locator('#dbReadBtn').click();
   await expect(page.locator('#dbLoadingBack')).toBeHidden();
 }
 async function fileJson(page,id) { return page.evaluate(id => JSON.parse(__fsMock.snapshot(id).text), id); }
@@ -33,7 +33,7 @@ test.beforeEach(async ({page}) => boot(page));
 
 test('DB-01, DB-03, DB-05: picker経由の正常DB読込と最低表示時間', async ({page}) => {
   await makeFile(page,'db','phase2-normal.json',json([task('loaded','読込済み')])); await queueOpen(page,'db');
-  const started=Date.now(); const click=page.getByRole('button',{name:'別DB読込'}).click();
+  const started=Date.now(); const click=page.locator('#dbReadBtn').click();
   await expect(page.locator('#dbLoadingBack')).toBeVisible(); await expect(page.locator('#dbLoadingFile')).toHaveText('phase2-normal.json');
   await click; await expect(page.locator('#dbLoadingBack')).toBeHidden(); expect(Date.now()-started).toBeGreaterThanOrEqual(450);
   await expect(page.locator('.dbName')).toHaveText('phase2-normal.json'); await expect(page.locator('#toast')).toContainText('DB読込成功');
@@ -42,7 +42,7 @@ test('DB-01, DB-03, DB-05: picker経由の正常DB読込と最低表示時間', 
 
 test('DB-06: 壊れたJSONは1回で拒否しpickerを再度開かない', async ({page}) => {
   await makeFile(page,'broken','broken.json','{"items":'); await queueOpen(page,'broken');
-  const dialog=page.waitForEvent('dialog'); const click=page.getByRole('button',{name:'別DB読込'}).click(); const d=await dialog;
+  const dialog=page.waitForEvent('dialog'); const click=page.locator('#dbReadBtn').click(); const d=await dialog;
   expect(d.message()).toContain('JSON読込に失敗'); await d.accept(); await click;
   expect((await calls(page)).filter(x=>x.op==='showOpenFilePicker')).toHaveLength(1); await expect(page.locator('.dbName')).toHaveText('未読込');
 });
