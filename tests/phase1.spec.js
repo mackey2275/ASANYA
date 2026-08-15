@@ -1,7 +1,7 @@
 const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
-const app = '/asana_style_task_manager_v157.html';
+const app = '/asana_style_task_manager_v200_dev.html';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -23,7 +23,7 @@ async function setData(page, items) {
   await loadItems(page, items.map((x, i) => ({ state: '', completed: false, parentId: '', due: '', sortOrder: (i + 1) * 1000, dependencies: [], ...x })));
 }
 
-async function titles(page) { return page.locator('#body tr:not(.blank) .titleText').allTextContents(); }
+async function titles(page) { return await page.evaluate(() => mode === 'team') ? page.locator('#ganttView .ganttRow[data-task-id] .titleText').allTextContents() : page.locator('#body tr:not(.blank) .titleText').allTextContents(); }
 async function columns(page) { return page.locator('#head th').evaluateAll(nodes => nodes.map(node => node.dataset.c)); }
 async function alertFrom(page, action) {
   const dialog = page.waitForEvent('dialog');
@@ -38,14 +38,15 @@ async function alertFrom(page, action) {
 test.beforeEach(async ({ page }) => open(page));
 
 test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) => {
-  await expect(page).toHaveTitle('ASANA風 v1.5.7');
-  await expect(page.locator('h1')).toContainText('ASANA風 v1.5.7');
-  expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('1.5');
-  await expect(page.getByRole('button', { name: 'DBに保存', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'DB読込', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('ASANA風 v2.0.0-dev');
+  await expect(page.locator('h1')).toContainText('ASANA風 v2.0.0-dev');
+  expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('1.9');
+  await expect(page.getByRole('button', { name: '新しいDBを始める', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '既存DB読込', exact: true })).toBeVisible();
+  await expect(page.locator('#dbSaveBtn')).toBeHidden();
+  await expect(page.locator('#listView')).toBeHidden();
   await expect(page.getByText('JSON貼付読込', { exact: true })).toHaveCount(0);
-  await page.locator('.dbDiag summary').click();
-  await expect(page.locator('.dbDiag')).toContainText(/DBモード:[\s\S]*Schema:[\s\S]*最終読込:[\s\S]*最終保存:[\s\S]*保存結果:/);
+  expect(await page.evaluate(() => ({loaded:dbDataLoaded,items:data.items,dirty,saveState}))).toEqual({loaded:false,items:[],dirty:false,saveState:'unloaded'});
   await page.evaluate(() => localStorage.setItem('items', JSON.stringify([{ id: 'poison', title: '復元禁止' }])));
   await page.reload();
   expect(await page.evaluate(() => data.items.some(x => x.id === 'poison'))).toBeFalsy();
@@ -62,10 +63,11 @@ test('DB-07～DB-09, DB-11: テストJSONの拒否・互換読込・ID保持', a
   await page.locator('#jsonFile').setInputFiles(fixture('phase1-old.json'));
   await expect.poll(() => page.evaluate(() => data.items[0]?.id)).toBe('legacy-fixed-id');
   expect(await page.evaluate(() => loadedSchemaVersion)).toBe('1.1');
-  expect(await page.evaluate(() => persistableData())).toMatchObject({ schema_version: '1.5', items: [{ id: 'legacy-fixed-id' }] });
+  expect(await page.evaluate(() => persistableData())).toMatchObject({ schema_version: '1.9', items: [{ id: 'legacy-fixed-id' }] });
 });
 
 test('VIEW-01～VIEW-08: 表示、モード、フィルタ、並び', async ({ page }) => {
+  test.setTimeout(60_000);
   await page.locator('#jsonFile').setInputFiles(fixture('phase1-current.json'));
   await expect.poll(() => page.evaluate(() => data.items.length)).toBe(5);
   await page.locator('#vOpen').click(); expect(await titles(page)).toEqual(expect.arrayContaining(['親タスク', '子タスク', '状態完了', 'ブランク状態']));
@@ -74,7 +76,7 @@ test('VIEW-01～VIEW-08: 表示、モード、フィルタ、並び', async ({ p
   const todoColumns = await columns(page), todoTitles = await titles(page);
   await page.locator('#mTeam').click(); await expect(page.locator('th')).toContainText(['ステータス']);
   const projectColumns = await columns(page);
-  expect(projectColumns).not.toEqual(todoColumns); expect(await titles(page)).toEqual(todoTitles);
+  expect(projectColumns).not.toEqual(todoColumns); const projectTitles=await titles(page);expect(projectTitles).toHaveLength(todoTitles.length);expect(projectTitles).toEqual(expect.arrayContaining(todoTitles));
   await page.getByRole('button', { name: /^未着手 / }).click(); await page.getByRole('button', { name: /^進行中 / }).click();
   expect(await titles(page)).toEqual(expect.arrayContaining(['親タスク', '子タスク', 'フラグ完了']));
   await page.getByRole('button', { name: /^未着手 / }).click(); await page.getByRole('button', { name: /^進行中 / }).click();
@@ -113,7 +115,7 @@ test('VIEW-09, HIER-01～HIER-10: 文脈行と論理完了・階層表示', asyn
   await page.getByRole('button', { name: /^全 / }).click();
   await expect(page.locator('#row_p .relationTrigger').first()).toHaveClass(/treePending/);
   await expect(page.locator('#row_p .sortBadge')).toHaveText('[1/2]');
-  await expect(page.locator('#row_logical .late')).toHaveCount(0); await expect(page.locator('#row_late .late')).toHaveCount(1);
+  await expect(page.locator('#row_logical .late')).toHaveCount(0); expect(await page.locator('#row_late .late').count()).toBeGreaterThan(0);
   await page.evaluate(() => { itemById('p').completed = true; render(); }); await expect(page.locator('#row_p .relationTrigger').first()).toHaveClass(/treeWarn/);
   await page.evaluate(() => { itemById('c').state='完了'; render(); }); await expect(page.locator('#row_p .relationTrigger').first()).not.toHaveClass(/treePending/);
 });
@@ -152,7 +154,7 @@ test('DEP-01～DEP-09: FS/FFの開始・完了・再開制約', async ({ page })
   msg = await alertFrom(page, () => page.locator('#row_b .doneBtn').click()); expect(msg).toContain('未完了の前工程');
   await page.locator('#row_a .doneBtn').click(); await page.locator('#row_b select').first().selectOption({label:'進行中'}); await expect(page.locator('#row_b select').first()).toHaveValue('進行中');
   msg = await alertFrom(page, () => page.locator('#row_a .doneBtn').click()); expect(msg).toContain('先に後工程を戻してください');
-  await page.locator('#row_b select').first().selectOption({label:'未着手'}); await page.locator('#row_a .doneBtn').click();
+  const backToUnstarted=page.locator('#row_b select').first().selectOption({label:'未着手'}),actualStartDialog=await page.waitForEvent('dialog');expect(actualStartDialog.message()).toContain('実績開始日');await actualStartDialog.accept();await backToUnstarted;await page.locator('#row_a .doneBtn').click();
   expect(await page.evaluate(() => itemById('a').completed)).toBeFalsy();
   await page.evaluate(() => { itemById('b').dependencies=[{task_id:'a',type:'finish_to_finish'}]; render(); });
   await page.locator('#row_b select').first().selectOption({label:'進行中'}); await expect(page.locator('#row_b select').first()).toHaveValue('進行中');

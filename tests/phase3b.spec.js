@@ -1,13 +1,14 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
-const app='/asana_style_task_manager_v157.html';
+const app='/asana_style_task_manager_v200_dev.html';
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 const json=items=>JSON.stringify({schema_version:'1.5',items});
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(app);
   await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name);});await page.reload();
+  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}));
 }
 async function setData(page,items){await page.evaluate(async items=>applyJsonObject({schema_version:'1.5',items},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}),items);}
 async function makeFile(page,id,name,text){await page.evaluate(({id,name,text})=>__fsMock.create(id,{name,text}),{id,name,text});}
@@ -15,7 +16,7 @@ async function queueOpen(page,id){await page.evaluate(id=>__fsMock.queueOpen(id)
 async function openDb(page,id){await queueOpen(page,id);await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();}
 async function snapshot(page,id){return page.evaluate(id=>__fsMock.snapshot(id).text,id);}
 async function dialogFrom(page,action,accept=true){const pending=page.waitForEvent('dialog'),result=action(),d=await pending,msg=d.message();accept?await d.accept():await d.dismiss();await result;return msg;}
-async function startDraft(page,key='Enter'){await page.locator('#row_A').click();await page.keyboard.press(key);return page.evaluate(()=>draftTaskId);}
+async function startDraft(page,key='Enter'){await page.evaluate(()=>selectTask('A'));await page.keyboard.press(key);return page.evaluate(()=>draftTaskId);}
 
 test.beforeEach(async({page})=>boot(page));
 
@@ -66,7 +67,7 @@ test('INPUT-11: ドラフト空期限Enterで期限なし確定',async({page})=>
 });
 
 test('INPUT-14, INPUT-15: D待機の時間切れとEsc解除',async({page})=>{
-  await setData(page,[task('A')]);await page.locator('#row_A').click();await page.keyboard.press('d');expect(await page.evaluate(()=>dateShortcutArmed)).toBeTruthy();await expect(page.locator('#shortcutHint')).toHaveClass(/show/);
+  await setData(page,[task('A')]);await page.evaluate(()=>selectTask('A'));await page.keyboard.press('d');expect(await page.evaluate(()=>dateShortcutArmed)).toBeTruthy();await expect(page.locator('#shortcutHint')).toHaveClass(/show/);
   await page.waitForTimeout(2100);expect(await page.evaluate(()=>dateShortcutArmed)).toBeFalsy();await expect(page.locator('#shortcutHint')).not.toHaveClass(/show/);
   await page.keyboard.press('D');expect(await page.evaluate(()=>dateShortcutArmed)).toBeTruthy();await page.keyboard.press('Escape');expect(await page.evaluate(()=>dateShortcutArmed)).toBeFalsy();await expect(page.locator('#shortcutHint')).not.toHaveClass(/show/);
 });

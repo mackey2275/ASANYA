@@ -1,8 +1,8 @@
 const { test, expect } = require('playwright/test');
 const { installFsAccessMock } = require('./helpers/fs-access-mock');
 
-const app = '/asana_style_task_manager_v157.html';
-const json = (items, schema='1.5') => JSON.stringify({ schema_version:schema, items });
+const app = '/asana_style_task_manager_v200_dev.html';
+const json = (items, schema='1.9') => JSON.stringify({ schema_version:schema, items });
 const task = (id, title=id, extra={}) => ({ id, parentId:'', state:'', title, completed:false, due:'', sortOrder:1000, dependencies:[], ...extra });
 
 async function boot(page) {
@@ -13,13 +13,14 @@ async function boot(page) {
 }
 async function makeFile(page, id, name, text, options={}) { await page.evaluate(({id,name,text,options}) => __fsMock.create(id,{name,text,...options}), {id,name,text,options}); }
 async function queueOpen(page,id) { await page.evaluate(id => __fsMock.queueOpen(id), id); }
+async function dbReadButton(page) { return (await page.locator('#dbStartScreen').isVisible()) ? page.locator('#startDbReadBtn') : page.locator('#dbReadBtn'); }
 async function openDb(page,id) {
-  await queueOpen(page,id); await page.locator('#dbReadBtn').click();
+  await queueOpen(page,id); await (await dbReadButton(page)).click();
   await expect(page.locator('#dbLoadingBack')).toBeHidden();
 }
 async function fileJson(page,id) { return page.evaluate(id => JSON.parse(__fsMock.snapshot(id).text), id); }
 async function calls(page) { return page.evaluate(() => __fsMock.calls()); }
-async function selectTask(page,id) { await page.locator(`#row_${id}`).click(); }
+async function selectTask(page,id) { await page.evaluate(taskId => window.selectTask(taskId), id); }
 async function moveButton(page) { await page.getByRole('button',{name:'↗ 選択タスクを別DBへ移動'}).click(); }
 async function sourceItems() {
   return [task('A','A'), task('A1','A1',{parentId:'A'}), task('A11','A11',{parentId:'A1'}), task('A2','A2',{parentId:'A'}), task('B','B')];
@@ -33,7 +34,7 @@ test.beforeEach(async ({page}) => boot(page));
 
 test('DB-01, DB-03, DB-05: picker経由の正常DB読込と最低表示時間', async ({page}) => {
   await makeFile(page,'db','phase2-normal.json',json([task('loaded','読込済み')])); await queueOpen(page,'db');
-  const started=Date.now(); const click=page.locator('#dbReadBtn').click();
+  const started=Date.now(); const click=(await dbReadButton(page)).click();
   await expect(page.locator('#dbLoadingBack')).toBeVisible(); await expect(page.locator('#dbLoadingFile')).toHaveText('phase2-normal.json');
   await click; await expect(page.locator('#dbLoadingBack')).toBeHidden(); expect(Date.now()-started).toBeGreaterThanOrEqual(450);
   await expect(page.locator('.dbName')).toHaveText('phase2-normal.json'); await expect(page.locator('#toast')).toContainText('DB読込成功');
@@ -42,16 +43,16 @@ test('DB-01, DB-03, DB-05: picker経由の正常DB読込と最低表示時間', 
 
 test('DB-06: 壊れたJSONは1回で拒否しpickerを再度開かない', async ({page}) => {
   await makeFile(page,'broken','broken.json','{"items":'); await queueOpen(page,'broken');
-  const dialog=page.waitForEvent('dialog'); const click=page.locator('#dbReadBtn').click(); const d=await dialog;
+  const dialog=page.waitForEvent('dialog'); const click=(await dbReadButton(page)).click(); const d=await dialog;
   expect(d.message()).toContain('JSON読込に失敗'); await d.accept(); await click;
   expect((await calls(page)).filter(x=>x.op==='showOpenFilePicker')).toHaveLength(1); await expect(page.locator('.dbName')).toHaveText('未読込');
 });
 
-test('DB-10, DB-11: 旧Schemaを編集して実ハンドルへ1.5で保存しIDを保持', async ({page}) => {
+test('DB-10, DB-11: 旧Schemaを編集して実ハンドルへ1.8で保存しIDを保持', async ({page}) => {
   await makeFile(page,'old','old.json',json([task('legacy-fixed-id','旧タイトル')],'1.1')); await openDb(page,'old');
   await page.locator('#row_legacy-fixed-id .titleText').fill('編集後タイトル'); await page.locator('h1').click();
   expect(await page.evaluate(() => requestDbSave({allowDownload:false,source:'test'}))).toBeTruthy();
-  const saved=await fileJson(page,'old'); expect(saved.schema_version).toBe('1.5'); expect(saved.items[0]).toMatchObject({id:'legacy-fixed-id',title:'編集後タイトル'});
+  const saved=await fileJson(page,'old'); expect(saved.schema_version).toBe('1.9'); expect(saved.items[0]).toMatchObject({id:'legacy-fixed-id',title:'編集後タイトル'});
 });
 
 test('SAVE-01, SAVE-02: 2秒後の自動保存と再読込後の永続化', async ({page}) => {
@@ -133,15 +134,15 @@ test('MOVE-10, MOVE-11, MOVE-14: 同一DB・重複ID・新Schemaを無変更で�
   await prepareMove(page); await selectTask(page,'A');
   await queueOpen(page,'source'); let dialog=page.waitForEvent('dialog'); let moving=moveButton(page); let d=await dialog; expect(d.message()).toContain('現在DB自身'); await d.accept(); await moving;
   await makeFile(page,'duplicate','duplicate.json',json([task('A','既存A')])); await queueOpen(page,'duplicate'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('同じID'); await d.accept(); await moving;
-  await makeFile(page,'future','future.json',json([], '1.6')); await queueOpen(page,'future'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('このバージョンでは扱えません'); await d.accept(); await moving;
+  await makeFile(page,'future','future.json',json([], '2.0')); await queueOpen(page,'future'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('このバージョンでは扱えません'); await d.accept(); await moving;
   expect((await fileJson(page,'source')).items).toHaveLength(5); expect((await calls(page)).filter(x=>x.op==='requestPermission'&&x.id==='future')).toHaveLength(0);
 });
 
-test('MOVE-15: 旧Schema移動先へ安全に移動し1.5で保存', async ({page}) => {
+test('MOVE-15: 旧Schema移動先へ安全に移動し1.8で保存', async ({page}) => {
   const existing=[task('legacy-existing','既存データ',{owner:'既存担当',summary:'既存概要'})];
   await makeFile(page,'source','source.json',json(await sourceItems())); await makeFile(page,'legacy-target','legacy-target.json',json(existing,'1.1')); await openDb(page,'source');
   await selectTask(page,'A'); await queueOpen(page,'legacy-target'); page.once('dialog',d=>d.accept()); await moveButton(page);
-  const saved=await fileJson(page,'legacy-target'); expect(saved.schema_version).toBe('1.5');
+  const saved=await fileJson(page,'legacy-target'); expect(saved.schema_version).toBe('1.9');
   expect(saved.items.find(x=>x.id==='legacy-existing')).toMatchObject({id:'legacy-existing',title:'既存データ',owner:'既存担当',summary:'既存概要'});
   expect(saved.items.map(x=>x.id).sort()).toEqual(['A','A1','A11','A2','legacy-existing']);
 });

@@ -1,6 +1,6 @@
 async function installFsAccessMock(page) {
   await page.addInitScript(() => {
-    const files = new Map(), openQueue = [], saveQueue = [], calls = [];
+    const files = new Map(), directories = new Map(), openQueue = [], saveQueue = [], directoryQueue = [], calls = [];
     let clock = 1000;
     const error = (name, message) => Object.assign(new Error(message), { name });
     function record(op, id, extra = {}) { calls.push({ op, id, ...extra }); }
@@ -53,8 +53,31 @@ async function installFsAccessMock(page) {
         __mockId: id
       };
     }
+    function directoryHandle(id) {
+      const dir = directories.get(id);
+      if (!dir) throw new Error(`Unknown mock directory: ${id}`);
+      return {
+        kind:'directory', name:dir.name, __mockId:id,
+        async getFileHandle(name,{create=false}={}) {
+          record('getFileHandle',id,{name,create});
+          if (dir.failGetFileHandle) throw error('NotAllowedError','mock getFileHandle failure');
+          let fileId=dir.entries.get(name);
+          if (!fileId && !create) throw error('NotFoundError','mock file not found');
+          if (!fileId) {
+            fileId=`${id}/${name}`; dir.entries.set(name,fileId);
+            files.set(fileId,{name,text:'',lastModified:++clock,readPermission:'granted',writePermission:'granted',requestReadResult:'granted',requestWriteResult:'granted',failGetFile:false,failCreateWritable:false,failWrite:false,failClose:false,failCreateOnCall:0,failWriteOnCall:0,failCloseOnCall:0,createCount:0,writeCount:0,closeCount:0,getFileCount:0,mutateAfterGetFileCall:0,mutateText:''});
+          }
+          Object.assign(state(fileId),dir.newFileOptions||{});
+          return handle(fileId);
+        },
+        async removeEntry(name) {
+          record('removeEntry',id,{name});
+          const fileId=dir.entries.get(name); if(fileId){dir.entries.delete(name);files.delete(fileId)}
+        }
+      };
+    }
     window.__fsMock = {
-      reset() { files.clear(); openQueue.length=0; saveQueue.length=0; calls.length=0; clock=1000; },
+      reset() { files.clear(); directories.clear(); openQueue.length=0; saveQueue.length=0; directoryQueue.length=0; calls.length=0; clock=1000; },
       create(id, options = {}) {
         files.set(id, { name:options.name||`${id}.json`, text:options.text||'', lastModified:options.lastModified||++clock,
           readPermission:options.readPermission||'granted', writePermission:options.writePermission||'granted',
@@ -65,6 +88,11 @@ async function installFsAccessMock(page) {
         return handle(id);
       },
       queueOpen(id) { openQueue.push(id); }, queueSave(id) { saveQueue.push(id); },
+      createDirectory(id,options={}) { directories.set(id,{name:options.name||id,entries:new Map(),failGetFileHandle:false,newFileOptions:{},...options}); return directoryHandle(id); },
+      addDirectoryFile(directoryId,fileId,name,options={}) { this.create(fileId,{...options,name});directories.get(directoryId).entries.set(name,fileId);return handle(fileId); },
+      queueDirectory(id) { directoryQueue.push(id); },
+      directoryHandle(id) { return directoryHandle(id); },
+      directoryEntries(id) { return [...directories.get(id).entries.entries()]; },
       mutate(id, text) { const s=state(id); s.text=text; s.lastModified=++clock; record('externalMutate', id); },
       configure(id, values) { Object.assign(state(id), values); },
       snapshot(id) { const s=state(id); return { ...s }; },
@@ -80,6 +108,11 @@ async function installFsAccessMock(page) {
       const id=saveQueue.shift(); record('showSaveFilePicker', id||'', { suggestedName:options?.suggestedName });
       if (!id) throw error('AbortError','mock picker cancelled');
       return handle(id);
+    };
+    window.showDirectoryPicker = async options => {
+      const id=directoryQueue.shift(); record('showDirectoryPicker',id||'',{pickerId:options?.id,startIn:options?.startIn?.__mockId||''});
+      if (!id) throw error('AbortError','mock picker cancelled');
+      return directoryHandle(id);
     };
   });
 }

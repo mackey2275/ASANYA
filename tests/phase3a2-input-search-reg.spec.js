@@ -1,12 +1,13 @@
 const { test, expect } = require('playwright/test');
 
-const app='/asana_style_task_manager_v157.html';
+const app='/asana_style_task_manager_v200_dev.html';
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 
 async function boot(page){
   await page.goto(app);
   await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name);});
   await page.reload();
+  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'Playwright','phase3.json',null,{remember:false,writePermissionGranted:false}));
 }
 async function setData(page,items){
   await page.evaluate(async items=>applyJsonObject({schema_version:'1.5',items},'Playwright','phase3.json',null,{remember:false,writePermissionGranted:false}),items);
@@ -43,23 +44,23 @@ test('INPUT-04: composition中のEnterでは期限移動・確定しない',asyn
 
 test('INPUT-05, INPUT-06: Enter同階層・Insert子ドラフトのparentIdと位置',async({page})=>{
   await setData(page,[task('A','A'),task('A1','A1',{parentId:'A'}),task('B','B',{sortOrder:2000})]);
-  await page.locator('#row_A').click(); await page.keyboard.press('Enter');
+  await page.evaluate(()=>selectTask('A')); await page.keyboard.press('Enter');
   let draft=await page.evaluate(()=>({id:draftTaskId,parentId:itemById(draftTaskId).parentId,rows:[...document.querySelectorAll('#body tr:not(.blank)')].map(x=>x.id)}));
   expect(draft.parentId).toBe(''); expect(draft.rows).toEqual(['row_A','row_A1',`row_${draft.id}`,'row_B']);
   await page.locator(`.titleText[data-id="${draft.id}"]`).press('Escape');
-  await page.locator('#row_A').click(); await page.keyboard.press('Insert');
+  await page.evaluate(()=>selectTask('A')); await page.keyboard.press('Insert');
   draft=await page.evaluate(()=>({id:draftTaskId,parentId:itemById(draftTaskId).parentId,rows:[...document.querySelectorAll('#body tr:not(.blank)')].map(x=>x.id)}));
   expect(draft.parentId).toBe('A'); expect(draft.rows).toEqual(['row_A','row_A1',`row_${draft.id}`,'row_B']);
 });
 
 test('INPUT-08, INPUT-09, INPUT-10: ドラフト位置固定・フォーカス・Esc分岐',async({page})=>{
-  await setData(page,[task('A','A'),task('B','B',{sortOrder:2000})]); await page.locator('#row_A').click(); await page.keyboard.press('Enter');
+  await setData(page,[task('A','A'),task('B','B',{sortOrder:2000})]); await page.evaluate(()=>selectTask('A')); await page.keyboard.press('Enter');
   let draftId=await page.evaluate(()=>draftTaskId),row=page.locator(`#row_${draftId}`),before=await row.evaluate(e=>e.rowIndex);
   await row.locator('.titleText').fill('位置固定ドラフト'); await row.locator('.titleText').press('Enter');
   await expect.poll(()=>page.evaluate(()=>draftStage)).toBe('due'); expect(await page.locator(`#row_${draftId}`).evaluate(e=>e.rowIndex)).toBe(before);
   expect(await page.evaluate(id=>{const i=data.items.findIndex(x=>x.id===id);return document.activeElement===document.getElementById('d'+i)},draftId)).toBeTruthy();
   await page.keyboard.press('Escape'); expect(await page.evaluate(id=>({exists:!!itemById(id),draftTaskId,due:itemById(id)?.due}),draftId)).toEqual({exists:true,draftTaskId:'',due:''});
-  await page.locator('#row_A').click(); await page.keyboard.press('Insert'); draftId=await page.evaluate(()=>draftTaskId); await page.locator(`#row_${draftId} .titleText`).press('Escape');
+  await page.evaluate(()=>selectTask('A')); await page.keyboard.press('Insert'); draftId=await page.evaluate(()=>draftTaskId); await page.locator(`#row_${draftId} .titleText`).press('Escape');
   expect(await page.evaluate(id=>({exists:!!itemById(id),draftTaskId}),draftId)).toEqual({exists:false,draftTaskId:''});
 });
 
