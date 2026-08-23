@@ -1,6 +1,6 @@
 const { test, expect } = require('playwright/test');
 
-const app='/asana_style_task_manager_v200_dev.html';
+const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 
 async function boot(page){
@@ -99,15 +99,14 @@ test('REG-04: 繰返しなし完了では次回タスクを生成しない',asyn
   expect(await page.evaluate(()=>data.items.map(x=>({id:x.id,completed:x.completed})))).toEqual([{id:'once',completed:true}]);
 });
 
-test('REG-05: 繰返しあり完了で次回期限の未完了タスクを1件生成',async({page})=>{
+test('REG-05: 繰返しあり完了で同一タスクを次回期限へ繰り越す',async({page})=>{
   await setData(page,[task('weekly','週次',{due:'2026-08-15',repeat:'毎週'})]); await page.locator('#vAll').click(); await page.locator('#row_weekly .doneBtn').click();
   const result=await page.evaluate(()=>data.items.map(x=>({id:x.id,title:x.title,due:x.due,repeat:x.repeat,completed:x.completed})));
-  expect(result).toHaveLength(2); expect(result.find(x=>x.id==='weekly')).toMatchObject({due:'2026-08-15',completed:true});
-  const next=result.find(x=>x.id!=='weekly'); expect(next).toMatchObject({title:'週次',due:'2026-08-22',repeat:'毎週',completed:false}); expect(next.id).toMatch(/^t-.+/);
+  expect(result).toEqual([{id:'weekly',title:'週次',due:'2026-08-22',repeat:'毎週',completed:false}]);
 });
 
 test('REG-06: 期限なし繰返し完了では生成せず通知',async({page})=>{
   await setData(page,[task('repeat-no-due','期限なし繰返し',{repeat:'毎月'})]); await page.locator('#vAll').click(); await page.locator('#row_repeat-no-due .doneBtn').click();
-  expect(await page.evaluate(()=>data.items.map(x=>({id:x.id,completed:x.completed,due:x.due})))).toEqual([{id:'repeat-no-due',completed:true,due:''}]);
-  await expect(page.locator('#toast')).toContainText('期限がないため次回タスクは作成していません');
+  expect(await page.evaluate(()=>data.items.map(x=>({id:x.id,completed:x.completed,due:x.due})))).toEqual([{id:'repeat-no-due',completed:false,due:''}]);
+  await expect(page.locator('#toast')).toContainText('次回の繰返し期限を計算できない');
 });

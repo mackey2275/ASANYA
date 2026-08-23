@@ -1,6 +1,5 @@
 const {test,expect}=require('playwright/test');
-const {pathToFileURL}=require('url');
-const APP=pathToFileURL(require('path').resolve(__dirname,'..','asana_style_task_manager_v200_dev.html')).href;
+const {APP_FILE_URL:APP}=require('./helpers/app-target');
 const task=(id,extra={})=>({id,parentId:'',state:'未着手',impact:'B-定期',title:`Task ${id}`,owner:'Owner',due:'2026-08-20',planned_duration_days:3,summary:'line 1\nline 2',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:Number(id.replace(/\D/g,''))*1000||1000,...extra});
 async function boot(page){await page.setViewportSize({width:1000,height:560});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(async xs=>applyJsonObject({schema_version:'1.8',items:xs},'unified','unified.json',null,{remember:false,writePermissionGranted:false}),[task('U1'),task('U2',{parentId:'U1',title:'Child',due:'2026-12-31'})]);await page.locator('#mTeam').click()}
 
@@ -16,4 +15,4 @@ test('UNIFIED-05: Alt+M/I、Alt+T/P/G無効、編集guard、表示ラベル',asy
 
 test('UNIFIED-06: top rowとhierarchy draftは共有rowでtimelineと整列',async({page})=>{await boot(page);const top=page.locator('#ganttView .projectTopDraftRow');await expect(top).toBeVisible();expect(await top.locator(':scope > .ganttLeftPane').count()).toBe(1);expect(await top.locator(':scope > .ganttTimelineClip').count()).toBe(1);await page.evaluate(()=>selectTask('U1'));await page.keyboard.press('Insert');const draft=page.locator('#ganttView .ganttDraftRow');await expect(draft).toBeVisible();expect(await draft.locator('.projectInfoTable .sum').count()).toBe(1);const boxes=await Promise.all([draft.locator('.ganttLeftPane').evaluate(el=>el.getBoundingClientRect().height),draft.locator('.ganttTimelineClip').evaluate(el=>el.getBoundingClientRect().height)]);expect(Math.abs(boxes[0]-boxes[1])).toBeLessThan(1)});
 
-test('UNIFIED-07: Schema 1.9とJSON field集合を維持',async({page})=>{await boot(page);const persisted=await page.evaluate(()=>persistableData());expect(persisted.schema_version).toBe('1.9');expect(Object.keys(persisted.items[0])).not.toContain('planned_start');expect(Object.keys(persisted.items[0])).not.toContain('project_detail_visible')});
+test('UNIFIED-07: Schema 2.0とJSON field集合を維持',async({page})=>{await boot(page);const persisted=await page.evaluate(()=>persistableData());expect(persisted.schema_version).toBe('2.0');expect(Object.keys(persisted.items[0])).not.toContain('planned_start');expect(Object.keys(persisted.items[0])).not.toContain('project_detail_visible')});

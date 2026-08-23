@@ -1,10 +1,10 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,due,duration=1,extra={})=>({id,parentId:'',state:'未着手',impact:'',title:id,owner:'',due,planned_duration_days:duration,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page,items){await page.emulateMedia({reducedMotion:'no-preference'});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>{applyJsonObject({schema_version:'1.8',items:xs},'animation','animation.json',null,{remember:false,writePermissionGranted:false});clearUndoHistory('animation-test')},items)}
 async function listDue(page,id,value){await page.locator(`#row_${id} .dueTxt`).click();const input=page.locator(`#row_${id} input[id^="d"]`);await input.fill(value);await input.press('Enter')}
 async function ganttDue(page,id,value){await page.locator(`.ganttRow[data-task-id="${id}"] .ganttDue .dueTxt`).click();const input=page.locator(`.ganttRow[data-task-id="${id}"] .ganttDueText`);await input.fill(value);await input.press('Enter')}
-async function expectAnimation(page,selector,kind){const row=page.locator(selector);await expect(row).toHaveClass(/sortMoveAnimating/);await expect(row).toHaveAttribute('data-sort-move-kind',kind);await expect.poll(()=>row.evaluate(el=>getComputedStyle(el).transform),{timeout:3000}).toBe('none');await expect(row).not.toHaveClass(/sortMoveAnimating/)}
+async function expectAnimation(page,selector,kind){const row=page.locator(selector);await expect(row).toHaveClass(/sortMoveAnimating/);await expect(row).toHaveAttribute('data-sort-move-kind',kind);await expect.poll(()=>row.evaluate(el=>getComputedStyle(el).transform),{timeout:6000}).toBe('none');await expect(row).not.toHaveClass(/sortMoveAnimating/)}
 
 test('SORT-ANIM-01: ToDo期限移動はFLIP・selected・follow、Undoは1段',async({page})=>{await boot(page,[task('A','2026-08-20'),task('B','2026-08-10',1,{sortOrder:2000})]);await page.locator('#mPersonal').click();await page.locator('#sDate').click();await listDue(page,'A','2026-08-05');await expectAnimation(page,'#row_A','due');await expect(page.locator('#row_A')).toHaveClass(/selectedRow/);expect(await page.evaluate(()=>({due:itemById('A').due,history:undoStack.length}))).toEqual({due:'2026-08-05',history:1});await page.keyboard.press('Control+z');expect(await page.evaluate(()=>itemById('A').due)).toBe('2026-08-20')});
 

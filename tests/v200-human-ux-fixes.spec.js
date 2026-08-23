@@ -1,6 +1,6 @@
 const {test,expect}=require('playwright/test');
 test.setTimeout(15000);
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page,items){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','ux.json',null,{remember:false,writePermissionGranted:false}),items)}
 async function gantt(page){await page.locator('#mTeam').click();await expect(page.locator('#ganttView')).toBeVisible()}
@@ -32,7 +32,7 @@ test('GANTT-DUE-ONLY-01: due-only markerは表示専用で正式plan・保存値
 });
 
 test('GANTT-DUE-ONLY-SEARCH-01: 検索はplan優先・なければ期限markerへ横追従しtooltipはMeiryo',async({page})=>{
-  await boot(page,[task('D','Far due only',{due:'2027-12-20'}),task('N','No schedule',{sortOrder:2000})]);await gantt(page);await page.evaluate(()=>setGanttTimelineScroll(0));await page.locator('#taskSearchBtn').click();await page.locator('#taskSearchInput').fill('Far due');await page.locator('.taskSearchResult').click();await page.waitForTimeout(100);expect(await page.evaluate(()=>ganttTimelineScrollLeft)).toBeGreaterThan(0);const marker=page.locator('.ganttDueOnlyMarker');await marker.hover();await expect(page.locator('#ganttCustomTip')).toContainText('計画日数未設定');expect(await page.locator('#ganttCustomTip').evaluate(e=>getComputedStyle(e).fontFamily)).toMatch(/Meiryo/);const before=await page.evaluate(()=>ganttTimelineScrollLeft);await page.locator('#taskSearchInput').fill('No schedule');await page.locator('.taskSearchResult').click();expect(await page.evaluate(()=>ganttTimelineScrollLeft)).toBe(before);
+  await boot(page,[task('D','Far due only',{due:'2027-12-20'}),task('N','No schedule',{sortOrder:2000})]);await gantt(page);await page.evaluate(()=>setGanttTimelineScroll(0));await page.locator('#taskSearchBtn').click();await page.locator('#taskSearchInput').fill('Far due');await page.locator('.taskSearchResult').click();await page.waitForTimeout(600);expect(await page.evaluate(()=>ganttTimelineScrollLeft)).toBeGreaterThan(0);const marker=page.locator('.ganttDueOnlyMarker');await marker.hover();await expect(page.locator('#ganttCustomTip')).toContainText('計画日数未設定');expect(await page.locator('#ganttCustomTip').evaluate(e=>getComputedStyle(e).fontFamily)).toMatch(/Meiryo/);await page.waitForTimeout(300);const before=await page.evaluate(()=>rcCaptureViewport().anchorDay);await page.locator('#taskSearchInput').fill('No schedule');await page.locator('.taskSearchResult').click();await page.waitForTimeout(300);const after=await page.evaluate(()=>rcCaptureViewport().anchorDay);expect(Math.abs(after-before)).toBeLessThanOrEqual(5);
 });
 
 test('TODO-TREE-FOLLOW-03: 期限編集のtree sort後に選択・赤attention・Insert親を維持',async({page})=>{

@@ -1,6 +1,5 @@
-﻿const {test,expect}=require('playwright/test');
-const {pathToFileURL}=require('url');
-const APP=pathToFileURL(require('path').resolve(__dirname,'..','asana_style_task_manager_v200_dev.html')).href;
+const {test,expect}=require('playwright/test');
+const {APP_FILE_URL:APP}=require('./helpers/app-target');
 const task=(i)=>({id:`TOP-${i}`,parentId:'',state:'未着手',impact:'',title:`Scroll task ${i}`,owner:'Owner',due:`2026-${String(1+Math.floor((i-1)/28)).padStart(2,'0')}-${String(1+(i-1)%28).padStart(2,'0')}`,planned_duration_days:3,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:i*1000});
 
 async function boot(page){

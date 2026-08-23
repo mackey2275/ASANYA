@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
-const app='/asana_style_task_manager_v200_dev.html';
+const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 const json=(items,schema='1.8')=>JSON.stringify({schema_version:schema,items});
 
@@ -22,7 +22,7 @@ test.beforeEach(async({page})=>boot(page));
 test('GANTT-SCHEMA-01: Schema 1.8と1.5/1.6互換、未設定を補完せず開始日を保存しない',async({page})=>{
   await setData(page,[task('legacy','旧Schema',{due:'2026-08-20'})],'1.5');
   const result=await page.evaluate(()=>({current:CURRENT_SCHEMA_VERSION,loadedSchemaVersion,schemaMigrationPending,item:data.items[0],saved:persistableData()}));
-  expect(result.current).toBe('1.9');expect(result.loadedSchemaVersion).toBe('1.5');expect(result.schemaMigrationPending).toBe(true);expect(result.item).not.toHaveProperty('planned_duration_days');expect(result.saved.schema_version).toBe('1.9');expect(result.saved.items[0]).not.toHaveProperty('planned_start');expect(result.saved.items[0]).not.toHaveProperty('planned_start_date');
+  expect(result.current).toBe('2.0');expect(result.loadedSchemaVersion).toBe('1.5');expect(result.schemaMigrationPending).toBe(true);expect(result.item).not.toHaveProperty('planned_duration_days');expect(result.saved.schema_version).toBe('2.0');expect(result.saved.items[0]).not.toHaveProperty('planned_start');expect(result.saved.items[0]).not.toHaveProperty('planned_start_date');
 });
 
 test('GANTT-DURATION-01: 空欄・0・1・複数日を保持し不正値を拒否して保存再読込',async({page})=>{
@@ -30,7 +30,7 @@ test('GANTT-DURATION-01: 空欄・0・1・複数日を保持し不正値を拒�
   const values=await page.locator('.ganttRow[data-task-id]').evaluateAll(rows=>Object.fromEntries(rows.map(r=>[r.dataset.taskId,r.querySelector('.plannedDays')?.value])));expect(values).toEqual({empty:'',zero:'0',one:'1',multi:'3'});
   const multi=page.locator('#row_multi .plannedDays');await multi.fill('5');await multi.blur();expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);
   const pending=page.waitForEvent('dialog');await multi.fill('-1');const blur=multi.blur();const dialog=await pending;expect(dialog.message()).toContain('0以上の整数');await dialog.accept();await blur;expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);
-  expect(await page.evaluate(()=>requestDbSave({allowDownload:false,source:'test'}))).toBe(true);await page.evaluate(()=>__fsMock.queueOpen('db'));await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);expect(await page.evaluate(()=>JSON.parse(__fsMock.snapshot('db').text).schema_version)).toBe('1.9');
+  expect(await page.evaluate(()=>requestDbSave({allowDownload:false,source:'test'}))).toBe(true);await page.evaluate(()=>__fsMock.queueOpen('db'));await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);expect(await page.evaluate(()=>JSON.parse(__fsMock.snapshot('db').text).schema_version)).toBe('2.0');
 });
 
 test('GANTT-DATE-01: 暦日の開始日計算と境界',async({page})=>{
@@ -94,14 +94,14 @@ test('GANTT-DRAG-BASIC-01: 実mouse操作の全体移動・左右resize・最小
   await showGanttData(page,[task('cancel','取消',{planned_duration_days:5,due:'2026-08-14'})]);const cancelBar=page.locator('.ganttBar[data-task-id="cancel"]'),box=await cancelBar.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+2*28,box.y+box.height/2,{steps:4});await expect(page.locator('.ganttDragPreview')).toBeVisible();await expect(page.locator('.ganttDragPreview')).toContainText('2026-08-12 ～ 2026-08-16');await page.keyboard.press('Escape');await page.mouse.up();expect(await page.evaluate(()=>({due:itemById('cancel').due,days:itemById('cancel').planned_duration_days}))).toEqual({due:'2026-08-14',days:5});
 });
 
-test('GANTT-DRAG-HIER-01: 明示親・子のdrag、包含警告、派生サマリーは非編集',async({page})=>{
-  await showGanttData(page,[task('parent','親',{planned_duration_days:20,due:'2026-08-20'}),task('child','子',{parentId:'parent',planned_duration_days:14,due:'2026-08-18'})]);const childBefore=await page.evaluate(()=>({due:itemById('child').due,days:itemById('child').planned_duration_days}));await mouseDrag(page,page.locator('.ganttBar[data-task-id="parent"]'),5*28);expect(await page.evaluate(()=>({due:itemById('child').due,days:itemById('child').planned_duration_days}))).toEqual(childBefore);await expect(page.locator('.ganttRow[data-task-id="parent"] .ganttWarn')).toBeVisible();
+test('GANTT-DRAG-HIER-01: 明示親dragは子孫期限を動かさず、子drag・包含警告・派生サマリー非編集を維持',async({page})=>{
+  await showGanttData(page,[task('parent','親',{planned_duration_days:20,due:'2026-08-20'}),task('child','子',{parentId:'parent',planned_duration_days:14,due:'2026-08-18'})]);await mouseDrag(page,page.locator('.ganttBar[data-task-id="parent"]'),5*28);expect(await page.evaluate(()=>({due:itemById('child').due,days:itemById('child').planned_duration_days}))).toEqual({due:'2026-08-18',days:14});await expect(page.locator('.ganttRow[data-task-id="parent"] .ganttWarn')).toBeVisible();
   await showGanttData(page,[task('parent','親',{planned_duration_days:20,due:'2026-08-20'}),task('child','子',{parentId:'parent',planned_duration_days:14,due:'2026-08-18'})]);await mouseDrag(page,page.locator('.ganttBar[data-task-id="child"]'),7*28);await expect(page.locator('.ganttRow[data-task-id="parent"] .ganttWarn')).toBeVisible();await mouseDrag(page,page.locator('.ganttBar[data-task-id="child"]'),-7*28);await expect(page.locator('.ganttRow[data-task-id="parent"] .ganttWarn')).toHaveCount(0);
   await showGanttData(page,[task('summaryParent','集約親'),task('summaryChild','集約子',{parentId:'summaryParent',planned_duration_days:5,due:'2026-08-14'})]);const before=await page.evaluate(()=>JSON.stringify(data.items));const summary=page.locator('.ganttBar.summary[data-task-id="summaryParent"]');await expect(summary).not.toHaveClass(/ganttEditable/);await expect(summary.locator('.ganttResizeHandle')).toHaveCount(0);await mouseDrag(page,summary,4*28);expect(await page.evaluate(()=>JSON.stringify(data.items))).toBe(before);
 });
 
 test('GANTT-DRAG-DEP-SAVE-01: FS/FF再評価、整数日スナップ、JSON保存値',async({page})=>{
-  await showGanttData(page,[task('A','A',{planned_duration_days:1,due:'2026-08-10'}),task('B','B',{planned_duration_days:1,due:'2026-08-12',dependencies:[{task_id:'A',type:'finish_to_start'}]}),task('C','C',{planned_duration_days:1,due:'2026-08-11',dependencies:[{task_id:'A',type:'finish_to_finish'}]})]);const related=await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}));await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),2*28+10);await expect(page.locator('.dependencyConflict')).toHaveCount(2);expect(await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}))).toEqual(related);const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe('1.9');expect(saved.items.find(x=>x.id==='A')).toMatchObject({due:'2026-08-12',planned_duration_days:1});expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_start');await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),-2*28-9);await expect(page.locator('.dependencyConflict')).toHaveCount(0);
+  await showGanttData(page,[task('A','A',{planned_duration_days:1,due:'2026-08-10'}),task('B','B',{planned_duration_days:1,due:'2026-08-12',dependencies:[{task_id:'A',type:'finish_to_start'}]}),task('C','C',{planned_duration_days:1,due:'2026-08-11',dependencies:[{task_id:'A',type:'finish_to_finish'}]})]);const related=await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}));await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),2*28+10);await expect(page.locator('.dependencyConflict')).toHaveCount(2);expect(await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}))).toEqual(related);const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe('2.0');expect(saved.items.find(x=>x.id==='A')).toMatchObject({due:'2026-08-12',planned_duration_days:1});expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_start');await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),-2*28-9);await expect(page.locator('.dependencyConflict')).toHaveCount(0);
 });
 
 test('GANTT-PARENT-01: 親自身計画を優先し子孫包含を日付範囲で判定',async({page})=>{
@@ -112,23 +112,16 @@ test('GANTT-PARENT-01: 親自身計画を優先し子孫包含を日付範囲で
   await page.locator('.parentConflict').first().click();await expect(page.locator('.ganttRow[data-task-id="ngParent"]')).toHaveClass(/ganttSelected/);await expect(page.locator('.ganttRow[data-task-id="ngParent"]')).toHaveClass(/conflictAttention/);await expect(page.locator('#toast')).toContainText('子孫の日程が親計画の範囲外です');await expect(page.locator('#toast')).toContainText('親計画：8/14 ～ 8/18');await expect(page.locator('#toast')).toContainText('子孫範囲：8/12 ～ 8/20');expect(await page.evaluate(()=>data.items.map(x=>({id:x.id,due:x.due,planned:x.planned_duration_days})))).toEqual(before);
 });
 
-test('GANTT-PARENT-UI-01: UI入力後の終了側逸脱・解除・再出現・親変更へ追従',async({page})=>{
-  await project(page);const parent=await createTopByUi(page,'UI親','2026/8/20',20),child=await createChildByUi(page,parent,'UI子','2026/8/25',14);await page.evaluate(()=>setMode('team'));
-  await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toBeVisible();await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttBar`)).toHaveClass(/conflict/);await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toHaveAttribute('data-gantt-tip',/親計画：2026-08-01 ～ 2026-08-20[\s\S]*子孫範囲：2026-08-12 ～ 2026-08-25/);
-  await editScheduleByUi(page,child,{due:'2026/8/18'});await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toHaveCount(0);
-  await editScheduleByUi(page,child,{due:'2026/8/25'});await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toBeVisible();
-  await editScheduleByUi(page,child,{due:'2026/8/18'});await editScheduleByUi(page,parent,{days:10});await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toBeVisible();await editScheduleByUi(page,parent,{days:20});await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toHaveCount(0);
+test('GANTT-PARENT-UI-01: Due親配下のchild DueをUIで許可',async({page})=>{
+  await project(page);const parent=await createTopByUi(page,'UI親','2026/8/20',20),child=await createChildByUi(page,parent,'UI子','',14);await editScheduleByUi(page,child,{due:'2026/8/25'});expect(await page.evaluate(({parent,child})=>({parent:itemById(parent).due,child:itemById(child).due}),{parent,child})).toEqual({parent:'2026-08-20',child:'2026-08-25'});
 });
 
-test('GANTT-PARENT-UI-02: UI入力の開始側逸脱と完全包含',async({page})=>{
-  await project(page);const parent=await createTopByUi(page,'開始親','2026/8/20',16),child=await createChildByUi(page,parent,'開始子','2026/8/18',18);await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toBeVisible();await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toHaveAttribute('data-gantt-tip',/子孫の開始が親計画より前です/);
-  await editScheduleByUi(page,parent,{days:20});await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toHaveCount(0);
+test('GANTT-PARENT-UI-02: descendant Dueがあってもancestor初回Due設定を許可し子を動かさない',async({page})=>{
+  await project(page);const parent=await createTopByUi(page,'開始親','',16),child=await createChildByUi(page,parent,'開始子','2026/8/18',18);await editScheduleByUi(page,parent,{due:'2026/8/20'});expect(await page.evaluate(({parent,child})=>({parent:itemById(parent).due,child:itemById(child).due}),{parent,child})).toEqual({parent:'2026-08-20',child:'2026-08-18'});
 });
 
-test('GANTT-PARENT-UI-03: 中間子の日程と孫を含む全子孫集計',async({page})=>{
-  await project(page);const parent=await createTopByUi(page,'三階層親','2026/8/20',20),child=await createChildByUi(page,parent,'三階層子','2026/8/22',8),grand=await createChildByUi(page,child,'三階層孫','2026/8/18',4);await page.evaluate(()=>setMode('team'));
-  await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toBeVisible();await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toHaveAttribute('data-gantt-tip',/子孫範囲：2026-08-15 ～ 2026-08-22/);
-  await editScheduleByUi(page,child,{due:'2026/8/15',days:11});await editScheduleByUi(page,grand,{due:'2026/8/25',days:16});await page.evaluate(()=>setMode('team'));await expect(page.locator(`.ganttRow[data-task-id="${parent}"] .ganttWarn`)).toBeVisible();await expect(page.locator(`.ganttRow[data-task-id="${child}"] .ganttWarn`)).toBeVisible();
+test('GANTT-PARENT-UI-03: parent・child・grandchildとsiblingのDue共存を許可',async({page})=>{
+  await project(page);const parent=await createTopByUi(page,'三階層親','',20),child=await createChildByUi(page,parent,'三階層子','',8),grand=await createChildByUi(page,child,'三階層孫','2026/8/18',4);await editScheduleByUi(page,child,{due:'2026/8/15'});await editScheduleByUi(page,parent,{due:'2026/8/20'});expect(await page.evaluate(({parent,child,grand})=>({parent:itemById(parent).due,child:itemById(child).due,grand:itemById(grand).due}),{parent,child,grand})).toEqual({parent:'2026-08-20',child:'2026-08-15',grand:'2026-08-18'});const sibling=await createChildByUi(page,parent,'別branch','2026/8/25',3);expect(await page.evaluate(id=>itemById(id).due,sibling)).toBe('2026-08-25');
 });
 
 test('GANTT-HIERARCHY-02: 親子は着手条件ではなく親完了条件、日程上は包含関係',async({page})=>{

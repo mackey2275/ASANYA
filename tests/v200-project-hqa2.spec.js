@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,extra={})=>({id,parentId:'',state:'未着手',impact:'',title:`Task ${id}`,owner:'担当',due:'2026-08-20',planned_duration_days:3,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:(Number(String(id).replace(/\D/g,''))||1)*1000,...extra});
 async function fresh(page,items=[task('1')]){await page.setViewportSize({width:1000,height:560});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>applyJsonObject({schema_version:'1.8',items:xs},'hqa2','hqa2.json',null,{remember:false,writePermissionGranted:false}),items);await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
 

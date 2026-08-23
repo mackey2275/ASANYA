@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,due,duration=1,sortOrder=1000)=>({id,parentId:'',state:'未着手',impact:'',title:id,owner:'',due,planned_duration_days:duration,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder});
 async function boot(page,items,gantt=false){await page.emulateMedia({reducedMotion:'no-preference'});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>{applyJsonObject({schema_version:'1.8',items:xs},'animation-paths','animation-paths.json',null,{remember:false,writePermissionGranted:false});clearUndoHistory('animation-paths-test')},items);await page.locator('#mTeam').click();if(gantt)await page.evaluate(()=>setMode('team'))}
 async function row(page,id){return page.locator(await page.locator('#ganttView').isVisible()?`.ganttRow[data-task-id="${id}"]`:`#row_${id}`)}

@@ -1,6 +1,6 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
-const APP='/asanya_task_manager_v200.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,extra={})=>({id,parentId:'',state:'',impact:'',title:id,owner:'owner',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,planned_duration_days:1,...extra});
 async function fresh(page,items,schema='2.0'){await page.setViewportSize({width:1680,height:900});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema,items},'final','final.json',null,{remember:false,writePermissionGranted:false}),{items,schema});await page.evaluate(()=>setMode('team'));await page.waitForTimeout(60)}
 
@@ -19,7 +19,7 @@ test('ORDER-DUP-03 boundary is a complete no-op including duplicate values and v
 });
 
 test('UNDO-FLIP-01/02 Undo and Redo animate subtree and displaced rows through shared FLIP',async({page})=>{
-  await fresh(page,[task('Q',{due:'2026-08-01',sortOrder:1000}),task('P',{due:'2026-08-02',sortOrder:2000}),task('C',{parentId:'P',due:'2026-08-03'}),task('G',{parentId:'C',due:'2026-08-04'})]);
+  await fresh(page,[task('Q',{due:'2026-08-01',sortOrder:1000}),task('P',{due:'2026-08-02',sortOrder:2000}),task('C',{parentId:'P',due:''}),task('G',{parentId:'C',due:''})]);
   const due=page.locator('.ganttRow[data-task-id="P"] .dueTxt');await due.click();const input=page.locator('.ganttRow[data-task-id="P"] input[type="text"]');await input.fill('2026/07/31');await input.press('Enter');await page.waitForTimeout(2300);
   await page.evaluate(()=>performUndo());
   for(const id of['P','C','G'])await expect(page.locator(`.ganttRow[data-task-id="${id}"]`)).toHaveClass(/sortMovePrimary/); await expect(page.locator('.ganttRow[data-task-id="Q"]')).toHaveClass(/sortMoveDisplaced/);
@@ -53,4 +53,4 @@ test('SCHEMA-200-01/02/03 File API mock proves create 2.0 and open-only does not
   await page.evaluate(()=>chg(data.items.findIndex(x=>x.id==='L'),'owner','edited'));await page.evaluate(()=>performDbSave({allowDownload:false,source:'test'}));const saved=JSON.parse(await page.evaluate(()=>__fsMock.snapshot('legacy').text));expect(saved.schema_version).toBe('2.0');expect(saved.items[0]).toMatchObject({id:'L',title:'legacy',owner:'edited',sortOrder:1000});
 });
 
-test('LOGO-01 and Schema 2.0 presentation at 1680x900',async({page})=>{await page.setViewportSize({width:1680,height:900});await page.goto(APP);await expect(page.locator('h1 svg')).toHaveCSS('transform',/matrix\(1, 0, 0, 1, 0, -1\)/);await expect(page.locator('.info')).toContainText('schema_version 2.0');await page.screenshot({path:'test-results/asanya-v200-final-human-qa.png'})});
+test('LOGO-01 and Schema 2.0 presentation at 1680x900',async({page})=>{await page.setViewportSize({width:1680,height:900});await page.goto(APP);await expect(page.locator('h1 svg')).toHaveCSS('transform',/matrix\(1, 0, 0, 1, 0, -2\)/);await expect(page.locator('.info')).toContainText('schema_version 2.0');await page.screenshot({path:'test-results/asanya-v200-final-human-qa.png'})});

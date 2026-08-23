@@ -1,5 +1,5 @@
-﻿const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {test,expect}=require('playwright/test');
+const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
 async function setData(page,items,schema='1.8'){await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema,items},'test','phase2.json',null,{remember:false,writePermissionGranted:false}),{items,schema})}
@@ -8,9 +8,9 @@ async function show(page,items,schema='1.8'){await setData(page,items,schema);aw
 async function drag(page,locator,days){await locator.evaluate(el=>{const host=el.closest('.ganttTimeline'),clip=document.querySelector('.ganttHeader .ganttTimelineClip');if(host&&clip){const left=parseFloat(el.style.left)||0;setGanttTimelineScroll(Math.max(0,left-clip.clientWidth/2))}});await locator.scrollIntoViewIfNeeded();const b=await locator.boundingBox();if(!b)throw new Error('drag target missing');await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2+days*28,b.y+b.height/2,{steps:6});await page.mouse.up()}
 test.beforeEach(async({page})=>boot(page));
 
-test('ACTUAL2-SCHEMA-01: 1.5/1.6/1.7互換、source補完、孤立source除去、1.8保存',async({page})=>{
+test('ACTUAL2-SCHEMA-01: 1.5/1.6/1.7互換、source補完、孤立source除去、2.0保存',async({page})=>{
   const result=await page.evaluate(async()=>{const versions={};for(const schema of ['1.5','1.6','1.7']){await applyJsonObject({schema_version:schema,items:[{id:'x',title:schema,actual_start:'2026-08-01',actual_end:'2026-08-02',actual_start_source:schema==='1.7'?undefined:'system'}]},'test',schema+'.json',null,{remember:false,writePermissionGranted:false});versions[schema]={...itemById('x')}}await applyJsonObject({schema_version:'1.8',items:[{id:'clean',title:'clean',actual_start_source:'system',actual_end_source:'user'},{id:'sources',title:'sources',actual_start:'2026-08-01',actual_start_source:'system',actual_end:'2026-08-02',actual_end_source:'user'}]},'test','1.8.json',null,{remember:false,writePermissionGranted:false});return{versions,saved:persistableData()}});
-  expect(result.versions['1.5']).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.versions['1.6']).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.versions['1.7']).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.saved.schema_version).toBe('1.9');expect(result.saved.items[0]).not.toHaveProperty('actual_start_source');expect(result.saved.items[0]).not.toHaveProperty('actual_end_source');expect(result.saved.items[1]).toMatchObject({actual_start_source:'system',actual_end_source:'user'});
+  expect(result.versions['1.5']).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.versions['1.6']).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.versions['1.7']).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.saved.schema_version).toBe('2.0');expect(result.saved.items[0]).not.toHaveProperty('actual_start_source');expect(result.saved.items[0]).not.toHaveProperty('actual_end_source');expect(result.saved.items[1]).toMatchObject({actual_start_source:'system',actual_end_source:'user'});
 });
 
 test('ACTUAL2-STATE-01: ガント状態変更で未設定実績だけをsystem補助設定して保持',async({page})=>{
@@ -52,7 +52,7 @@ test('ACTUAL2-LIST-ENTER-01: Project計画日数はEnter確定してblur',async(
   await setData(page,[task('list','リスト')]);await page.locator('#mTeam').click();const input=page.locator('#row_list .plannedDays');await input.fill('7');await input.press('Enter');expect(await page.evaluate(()=>itemById('list').planned_duration_days)).toBe(7);expect(await page.evaluate(()=>document.activeElement?.classList.contains('plannedDays'))).toBe(false);
 });
 
-test('ACTUAL2-GANTT-EDIT-02: inline編集で親包含・FS・期限超過を再評価し他タスクは不変',async({page})=>{
+test('ACTUAL2-GANTT-EDIT-02: inline親期限編集は子孫を動かさず親包含・FS・期限超過を再評価',async({page})=>{
   await show(page,[task('parent','親',{due:'2026-08-20',planned_duration_days:10}),task('child','子',{parentId:'parent',due:'2026-08-25',planned_duration_days:2}),task('A','A',{due:'2026-08-10',planned_duration_days:1}),task('B','B',{due:'2026-08-12',planned_duration_days:2,dependencies:[{task_id:'A',type:'finish_to_start'}]})]);expect(await page.evaluate(()=>parentPlanConflicts().length)).toBe(1);expect(await page.evaluate(()=>plannedScheduleConflicts().length)).toBe(0);
   await page.locator('.ganttRow[data-task-id="parent"] .ganttDue .dueTxt').click();let input=page.locator('.ganttRow[data-task-id="parent"] .ganttDueText');await input.fill('2026-08-30');await input.press('Enter');expect(await page.evaluate(()=>parentPlanConflicts().length)).toBe(0);expect(await page.evaluate(()=>itemById('child').due)).toBe('2026-08-25');
   await page.locator('.ganttRow[data-task-id="B"] .ganttPlanned').click();input=page.locator('.ganttRow[data-task-id="B"] .ganttPlanned input');await input.fill('3');await input.press('Enter');expect(await page.evaluate(()=>plannedScheduleConflicts().length)).toBe(1);expect(await page.evaluate(()=>itemById('A').due)).toBe('2026-08-10');

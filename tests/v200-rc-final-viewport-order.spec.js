@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,extra={})=>({id,parentId:'',state:'',impact:'',title:id,owner:'owner',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,planned_duration_days:1,...extra});
 async function fresh(page,items,mode='team'){
   await page.setViewportSize({width:1680,height:900});
@@ -25,12 +25,13 @@ test('ZA-001/003 upward FLIP keeps primary in front for exactly 2240ms',async({p
   await page.waitForTimeout(40); await expect(page.locator('.sortMovePrimary')).toHaveCSS('transition-duration','2.24s');
 });
 
-test('MO-001..004 Project arrows use effective-start, sortOrder, and boundary is viewport no-op',async({page})=>{
+test('MO-001..004 Project arrows use effective-start, sortOrder, shorter FLIP, and boundary is viewport no-op',async({page})=>{
   await fresh(page,[task('A',{sortOrder:1000}),task('B',{sortOrder:2000}),task('C',{sortOrder:3000})]);
   expect(await page.evaluate(()=>projectPlannedVisible().map(p=>p.x.id))).toEqual(['A','B','C']);
   await page.evaluate(()=>moveItem(data.items.findIndex(x=>x.id==='B'),-1));
   expect(await page.evaluate(()=>projectPlannedVisible().map(p=>p.x.id))).toEqual(['B','A','C']);
   await page.waitForTimeout(40); await expect(page.locator('.sortMovePrimary')).toHaveCount(1);
+  await expect(page.locator('.sortMovePrimary')).toHaveCSS('transition-duration','1.12s');
   await page.waitForTimeout(2300); const before=await anchor(page,'B'); await page.evaluate(()=>moveItem(data.items.findIndex(x=>x.id==='B'),-1)); const after=await anchor(page,'B'); expect(after.y).toBe(before.y); expect(after.top).toBe(before.top);
 });
 
@@ -50,7 +51,7 @@ test('ZA-FINAL-001..005 upward subtree is front, displaced row behind, leaf rema
   const y=await page.evaluate(()=>scrollY); await page.evaluate(()=>moveItem(data.items.findIndex(x=>x.id==='P'),-1));
   for(const id of['P','C','G'])await expect(page.locator(`.ganttRow[data-task-id="${id}"]`)).toHaveClass(/sortMovePrimary/);
   await expect(page.locator('.ganttRow[data-task-id="Q"]')).toHaveClass(/sortMoveDisplaced/);
-  await expect(page.locator('.sortMovePrimary').first()).toHaveCSS('transition-duration','2.24s'); expect(await page.evaluate(()=>scrollY)).toBe(y);
+  await expect(page.locator('.sortMovePrimary').first()).toHaveCSS('transition-duration','1.12s'); expect(await page.evaluate(()=>scrollY)).toBe(y);
   await page.waitForTimeout(2300); await fresh(page,[task('A',{sortOrder:1000}),task('B',{sortOrder:2000})]); await page.evaluate(()=>moveItem(data.items.findIndex(x=>x.id==='B'),-1));
   await expect(page.locator('.sortMovePrimary')).toHaveCount(1); await expect(page.locator('.sortMoveDisplaced')).toHaveCount(1);
 });

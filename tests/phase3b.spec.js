@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
-const app='/asana_style_task_manager_v200_dev.html';
+const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 const json=items=>JSON.stringify({schema_version:'1.5',items});
 

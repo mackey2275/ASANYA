@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
 async function show(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','phase-ab.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#mTeam').click();await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
@@ -44,4 +44,4 @@ test('DRAFT-FLOW-02: child/grandchildはduration確定まで位置固定し確�
   await page.locator(`.ganttRow[data-task-id="${id}"] .ganttTaskName`).click({position:{x:5,y:5}});await page.keyboard.press('Insert');const gid=await page.evaluate(()=>draftTaskId);await page.locator('.ganttDraftRow .ganttDraftTitle').fill('孫');await page.locator('.ganttDraftRow .ganttDraftTitle').press('Enter');await page.locator('.ganttDraftRow .ganttDue input[type="text"]').press('Escape');expect(await page.evaluate(gid=>itemById(gid),gid)).toBeUndefined();expect(await page.evaluate(()=>selectedTaskId)).toBe(id);
 });
 
-test('GANTT-UI-01: 列名をList用語へ統一しsort選択UIを追加しない',async({page})=>{await show(page,[task('p','親')]);await expect(page.locator('.ganttHeader .ganttLeftPane')).toContainText('タイトル');await expect(page.locator('.ganttHeader .ganttLeftPane')).toContainText('ステータス');await expect(page.getByText(/開始日順|期限順|元順/)).toHaveCount(0);expect(await page.evaluate(()=>data.schema_version)).toBe('1.9')});
+test('GANTT-UI-01: 列名をList用語へ統一しsort選択UIを追加しない',async({page})=>{await show(page,[task('p','親')]);await expect(page.locator('.ganttHeader .ganttLeftPane')).toContainText('タイトル');await expect(page.locator('.ganttHeader .ganttLeftPane')).toContainText('ステータス');await expect(page.getByText(/開始日順|期限順|元順/)).toHaveCount(0);expect(await page.evaluate(()=>data.schema_version)).toBe('2.0')});

@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
 async function setData(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','sort-child.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#mTeam').click()}
@@ -18,7 +18,7 @@ test('PROJECT-SORT-02: 親計画優先と子孫effective startで階層を維持
 });
 
 test('GANTT-CHILD-01: Insertでtitle→期限を経てchild、child Insertでgrandchildを作成',async({page})=>{
-  await setData(page,[task('parent','親',{due:'2026-08-20',planned_duration_days:10}),task('existing','既存子',{parentId:'parent',due:'2026-08-10',planned_duration_days:1,sortOrder:2000})]);await gantt(page);await page.locator('.ganttRow[data-task-id="parent"] .ganttTaskName').click({position:{x:5,y:5}});await page.keyboard.press('Insert');const childId=await page.evaluate(()=>draftTaskId);await finishDraft(page,'新規子','2026/8/15');const child=await page.evaluate(id=>itemById(id),childId);expect(child).toMatchObject({parentId:'parent',title:'新規子',due:'2026-08-15',dependencies:[]});expect(child).not.toHaveProperty('planned_duration_days');expect(child).not.toHaveProperty('actual_start');expect((await ganttOrder(page)).indexOf('existing')).toBeLessThan((await ganttOrder(page)).indexOf(childId));expect(await page.evaluate(id=>persistableData().items.some(x=>x.id===id),childId)).toBe(true);await page.locator(`.ganttRow[data-task-id="${childId}"] .ganttTaskName`).click({position:{x:5,y:5}});await page.keyboard.press('Insert');const grandId=await page.evaluate(()=>draftTaskId);await finishDraft(page,'孫');expect(await page.evaluate(id=>itemById(id).parentId,grandId)).toBe(childId);expect(await page.locator(`.ganttRow[data-task-id="${grandId}"] .childMark`)).toBeVisible();
+  await setData(page,[task('parent','親',{planned_duration_days:10}),task('existing','既存子',{parentId:'parent',due:'2026-08-10',planned_duration_days:1,sortOrder:2000})]);await gantt(page);await page.locator('.ganttRow[data-task-id="parent"] .ganttTaskName').click({position:{x:5,y:5}});await page.keyboard.press('Insert');const childId=await page.evaluate(()=>draftTaskId);await finishDraft(page,'新規子','2026/8/15');const child=await page.evaluate(id=>itemById(id),childId);expect(child).toMatchObject({parentId:'parent',title:'新規子',due:'2026-08-15',dependencies:[]});expect(child).not.toHaveProperty('planned_duration_days');expect(child).not.toHaveProperty('actual_start');expect((await ganttOrder(page)).indexOf('existing')).toBeLessThan((await ganttOrder(page)).indexOf(childId));expect(await page.evaluate(id=>persistableData().items.some(x=>x.id===id),childId)).toBe(true);await page.locator(`.ganttRow[data-task-id="${childId}"] .ganttTaskName`).click({position:{x:5,y:5}});await page.keyboard.press('Insert');const grandId=await page.evaluate(()=>draftTaskId);await finishDraft(page,'孫');expect(await page.evaluate(id=>itemById(id).parentId,grandId)).toBe(childId);expect(await page.locator(`.ganttRow[data-task-id="${grandId}"] .childMark`)).toBeVisible();
 });
 
 test('GANTT-CHILD-02: ＋も共通draft path、Escと空Enterはprovisional taskを残さない',async({page})=>{
@@ -72,7 +72,7 @@ test('PROJECT-SORT-DUE-ONLY-04: provisional key does not create bars, warnings, 
   await expect(page.locator('.ganttRow[data-task-id="A"] .ganttBar,.ganttRow[data-task-id="A"] .ganttMilestone')).toHaveCount(0);
   await expect(page.locator('.ganttRow[data-task-id="P"] .ganttBar,.ganttRow[data-task-id="P"] .ganttMilestone')).toHaveCount(0);
   const saved=await page.evaluate(()=>persistableData());
-  expect(saved.schema_version).toBe('1.9');
+  expect(saved.schema_version).toBe('2.0');
   expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_duration_days');
   expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_start');
   expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('sort_start');

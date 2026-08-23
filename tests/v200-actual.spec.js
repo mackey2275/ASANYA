@@ -1,5 +1,5 @@
-﻿const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {test,expect}=require('playwright/test');
+const {APP}=require('./helpers/app-target');
 const task=(id,title,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:0,...extra});
 async function open(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
 async function setData(page,items,schema='1.8'){await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema,items},'Playwright','actual.json',null,{remember:false,writePermissionGranted:false}),{items,schema})}
@@ -7,8 +7,8 @@ async function show(page,items){await setData(page,items);await page.locator('#m
 async function drag(page,locator,dx){await locator.scrollIntoViewIfNeeded();const b=await locator.boundingBox();if(!b)throw new Error('drag target missing');await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2+dx,b.y+b.height/2,{steps:5});await page.mouse.up()}
 test.beforeEach(async({page})=>open(page));
 
-test('GANTT-ACTUAL-SCHEMA-01: 旧Schema実績をuserとしてSchema 1.8保存',async({page})=>{
-  await setData(page,[task('legacy','旧実績',{actual_start:'2026-07-01',actual_end:'2026-07-03'})],'1.7');const result=await page.evaluate(()=>({item:itemById('legacy'),saved:persistableData()}));expect(result.item).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.saved.schema_version).toBe('1.9');expect(result.saved.items[0]).not.toHaveProperty('planned_start');
+test('GANTT-ACTUAL-SCHEMA-01: 旧Schema実績をuserとしてSchema 2.0保存',async({page})=>{
+  await setData(page,[task('legacy','旧実績',{actual_start:'2026-07-01',actual_end:'2026-07-03'})],'1.7');const result=await page.evaluate(()=>({item:itemById('legacy'),saved:persistableData()}));expect(result.item).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.saved.schema_version).toBe('2.0');expect(result.saved.items[0]).not.toHaveProperty('planned_start');
 });
 
 test('GANTT-ACTUAL-VIEW-01: 未設定・進行中・完了・同日の実績表示と時間軸拡張',async({page})=>{

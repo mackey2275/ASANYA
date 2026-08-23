@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,extra={})=>({id,parentId:'',state:'未着手',impact:'',title:`Task ${id}`,owner:'Owner',due:'2026-08-20',planned_duration_days:3,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:Number(id.replace(/\D/g,''))*1000||1000,...extra});
 const items=()=>Array.from({length:80},(_,i)=>{const d=new Date(Date.UTC(2026,7,1+i));return task(`T${i+1}`,{due:d.toISOString().slice(0,10)})});
 async function boot(page){await page.setViewportSize({width:900,height:520});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>{applyJsonObject({schema_version:'1.8',items:xs},'sticky','sticky.json',null,{remember:false,writePermissionGranted:false});const spacer=document.createElement('div');spacer.id='stickyTestSpacer';spacer.style.height='900px';document.body.appendChild(spacer)},items())}

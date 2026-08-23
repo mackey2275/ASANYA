@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const APP='/asana_style_task_manager_v200_dev.html';
+const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page,items){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','ux.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#mTeam').click()}
 async function gantt(page){await expect(page.locator('#ganttView')).toBeVisible()}

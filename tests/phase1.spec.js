@@ -1,7 +1,7 @@
 const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
-const app = '/asana_style_task_manager_v200_dev.html';
+const {APP:app}=require('./helpers/app-target');
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -38,9 +38,9 @@ async function alertFrom(page, action) {
 test.beforeEach(async ({ page }) => open(page));
 
 test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) => {
-  await expect(page).toHaveTitle('ASANA風 v2.0.0-dev');
-  await expect(page.locator('h1')).toContainText('ASANA風 v2.0.0-dev');
-  expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('1.9');
+  await expect(page).toHaveTitle('ASANYA v2.0.0');
+  await expect(page.locator('h1')).toContainText('ASANYA v2.0.0');
+  expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('2.0');
   await expect(page.getByRole('button', { name: '新しいDBを始める', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '既存DB読込', exact: true })).toBeVisible();
   await expect(page.locator('#dbSaveBtn')).toBeHidden();
@@ -63,7 +63,7 @@ test('DB-07～DB-09, DB-11: テストJSONの拒否・互換読込・ID保持', a
   await page.locator('#jsonFile').setInputFiles(fixture('phase1-old.json'));
   await expect.poll(() => page.evaluate(() => data.items[0]?.id)).toBe('legacy-fixed-id');
   expect(await page.evaluate(() => loadedSchemaVersion)).toBe('1.1');
-  expect(await page.evaluate(() => persistableData())).toMatchObject({ schema_version: '1.9', items: [{ id: 'legacy-fixed-id' }] });
+  expect(await page.evaluate(() => persistableData())).toMatchObject({ schema_version: '2.0', items: [{ id: 'legacy-fixed-id' }] });
 });
 
 test('VIEW-01～VIEW-08: 表示、モード、フィルタ、並び', async ({ page }) => {
@@ -88,7 +88,7 @@ test('VIEW-01～VIEW-08: 表示、モード、フィルタ、並び', async ({ p
   expect(await columns(page)).toEqual(todoColumns); expect(await titles(page)).toHaveLength(5);
   await page.locator('#mTeam').click(); expect(await page.evaluate(() => [...filterStates])).toEqual(['未着手']);
   await page.getByRole('button', { name: /^全 / }).click();
-  await page.locator('#sDate').click(); expect(await titles(page)).toHaveLength(5); await page.locator('#sTree').click(); expect(await titles(page)).toHaveLength(5);
+  await expect(page.locator('#sDate')).toBeDisabled();expect(await page.evaluate(() => sortMode)).toBe('tree');await page.locator('#sTree').click();expect(await titles(page)).toHaveLength(5);
 });
 
 test('VIEW-08: ツリー順と日付順の実際の並び', async ({ page }) => {
@@ -120,7 +120,7 @@ test('VIEW-09, HIER-01～HIER-10: 文脈行と論理完了・階層表示', asyn
   await page.evaluate(() => { itemById('c').state='完了'; render(); }); await expect(page.locator('#row_p .relationTrigger').first()).not.toHaveClass(/treePending/);
 });
 
-test('HIER-03, HIER-05, HIER-08: 二重完了の片側解除・未完了孫・直接子の完了数', async ({ page }) => {
+test('HIER-03, HIER-05, HIER-08: 完了状態の統一解除・未完了孫・直接子の完了数', async ({ page }) => {
   await setData(page, [
     { id:'dual-flag', title:'二重完了・フラグ解除', state:'完了', completed:true },
     { id:'dual-state', title:'二重完了・状態解除', state:'完了', completed:true },
@@ -132,9 +132,9 @@ test('HIER-03, HIER-05, HIER-08: 二重完了の片側解除・未完了孫・�
   ]);
   await page.locator('#vAll').click(); await page.locator('#mTeam').click();
   await page.locator('#row_dual-flag .doneBtn').click();
-  expect(await page.evaluate(() => ({ completed:itemById('dual-flag').completed, state:itemById('dual-flag').state, logical:isLogicallyComplete(itemById('dual-flag')) }))).toEqual({ completed:false, state:'完了', logical:true });
+  expect(await page.evaluate(() => ({ completed:itemById('dual-flag').completed, state:itemById('dual-flag').state, logical:isLogicallyComplete(itemById('dual-flag')) }))).toEqual({ completed:false, state:'', logical:false });
   await page.locator('#row_dual-state select').first().selectOption({ label:'未着手' });
-  expect(await page.evaluate(() => ({ completed:itemById('dual-state').completed, state:itemById('dual-state').state, logical:isLogicallyComplete(itemById('dual-state')) }))).toEqual({ completed:true, state:'未着手', logical:true });
+  expect(await page.evaluate(() => ({ completed:itemById('dual-state').completed, state:itemById('dual-state').state, logical:isLogicallyComplete(itemById('dual-state')) }))).toEqual({ completed:false, state:'未着手', logical:false });
   await expect(page.locator('#row_p-grand .relationTrigger').first()).toHaveClass(/treePending/);
   await expect(page.locator('#row_p-count .sortBadge')).toHaveText('[0/1]');
 });
