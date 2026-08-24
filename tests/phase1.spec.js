@@ -2,6 +2,7 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
+const expectedProduct=app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -38,8 +39,8 @@ async function alertFrom(page, action) {
 test.beforeEach(async ({ page }) => open(page));
 
 test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) => {
-  await expect(page).toHaveTitle('ASANYA v2.0.0');
-  await expect(page.locator('h1')).toContainText('ASANYA v2.0.0');
+  await expect(page).toHaveTitle(expectedProduct);
+  await expect(page.locator('h1')).toContainText(expectedProduct);
   expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('2.0');
   await expect(page.getByRole('button', { name: '新しいDBを始める', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '既存DB読込', exact: true })).toBeVisible();

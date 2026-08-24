@@ -1,6 +1,7 @@
 const {test,expect}=require('playwright/test');
 const fs=require('node:fs');
 const {APP,APP_FS_PATH}=require('./helpers/app-target');
+const expectedProduct=APP.includes('v211_dev')?'ASANYA v2.1.1-dev':APP.includes('v211')?'ASANYA v2.1.1':APP.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const task=(id,extra={})=>({id,parentId:'',state:'',impact:'',title:id,owner:'owner',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,planned_duration_days:1,...extra});
 async function fresh(page,items){await page.setViewportSize({width:1680,height:900});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>applyJsonObject({schema_version:'1.9',items:xs},'release','release.json',null,{remember:false,writePermissionGranted:false}),items);await page.evaluate(()=>setMode('team'));await page.waitForTimeout(60)}
 
@@ -8,9 +9,9 @@ test('release static branding, schema, help, favicon and compatibility IDs',asyn
   const html=fs.readFileSync(APP_FS_PATH,'utf8');
   expect(html).not.toMatch(/ASANA風|v2\.0\.0-dev|Schema:\s*1\.8|schema_versionは1\.8|Alt\+T＝ToDo|Alt\+P＝Project/);
   for(const key of['asana_style_task_manager_handles_v1','asana-task-db','asana-copy-save','asana-new-db-save'])expect(html).toContain(key);
-  await page.goto(APP); await expect(page).toHaveTitle('ASANYA v2.0.0'); const h=page.locator('h1'); await expect(h).toContainText('ASANYA v2.0.0');
+  await page.goto(APP); await expect(page).toHaveTitle(expectedProduct); const h=page.locator('h1'); await expect(h).toContainText(expectedProduct);
   const circles=h.locator('svg[aria-hidden="true"] circle'); await expect(circles).toHaveCount(3); await expect(circles.first()).toHaveAttribute('fill','#22d34f');
-  await expect(page.locator('.info')).toHaveText('ASANYA v2.0.0 / schema_version 2.0');
+  await expect(page.locator('.info')).toHaveText(expectedProduct+' / schema_version 2.0');
   await expect(h.locator('svg')).toHaveCSS('transform',/matrix\(1, 0, 0, 1, 0, -2\)/);
 });
 
