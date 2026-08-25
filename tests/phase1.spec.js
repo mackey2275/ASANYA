@@ -2,7 +2,8 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
-const expectedProduct=app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV220=app.includes('v220_dev'),expectedSchema=isV220?'2.2':'2.0';
+const expectedProduct=isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -41,7 +42,7 @@ test.beforeEach(async ({ page }) => open(page));
 test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) => {
   await expect(page).toHaveTitle(expectedProduct);
   await expect(page.locator('h1')).toContainText(expectedProduct);
-  expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe('2.0');
+  expect(await page.evaluate(() => CURRENT_SCHEMA_VERSION)).toBe(expectedSchema);
   await expect(page.getByRole('button', { name: '新しいDBを始める', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '既存DB読込', exact: true })).toBeVisible();
   await expect(page.locator('#dbSaveBtn')).toBeHidden();
@@ -55,7 +56,7 @@ test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) =>
 
 test('DB-07～DB-09, DB-11: テストJSONの拒否・互換読込・ID保持', async ({ page }) => {
   await setData(page, [{ id: 'baseline', title: '現在DB' }]);
-  for (const [name, expected] of [['phase1-invalid-no-items.json', 'baseline'], ['phase1-future.json', 'baseline']]) {
+  for (const [name, expected] of [['phase1-invalid-no-items.json', 'baseline'], [isV220?'phase1-future-v220.json':'phase1-future.json', 'baseline']]) {
     const dialog = page.waitForEvent('dialog');
     await page.locator('#jsonFile').setInputFiles(fixture(name));
     await (await dialog).accept();
@@ -64,7 +65,7 @@ test('DB-07～DB-09, DB-11: テストJSONの拒否・互換読込・ID保持', a
   await page.locator('#jsonFile').setInputFiles(fixture('phase1-old.json'));
   await expect.poll(() => page.evaluate(() => data.items[0]?.id)).toBe('legacy-fixed-id');
   expect(await page.evaluate(() => loadedSchemaVersion)).toBe('1.1');
-  expect(await page.evaluate(() => persistableData())).toMatchObject({ schema_version: '2.0', items: [{ id: 'legacy-fixed-id' }] });
+  expect(await page.evaluate(() => persistableData())).toMatchObject({ schema_version: expectedSchema, items: [{ id: 'legacy-fixed-id' }] });
 });
 
 test('VIEW-01～VIEW-08: 表示、モード、フィルタ、並び', async ({ page }) => {

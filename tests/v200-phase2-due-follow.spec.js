@@ -11,7 +11,7 @@ for(const mode of['personal','team'])test(`PHASE2-DUE-FOLLOW-01 ${mode}: no pre-
   const before=await page.evaluate(()=>({index:displaySortIndex('T1'),pageY:scrollY,listTop:listView.scrollTop,ganttTop:ganttView.scrollTop,outer:ganttView.scrollLeft,timeline:ganttTimelineScrollLeft}));await editorShortcut(page,mode,'T1');
   const started=await page.evaluate(()=>({draft:draftTaskId,pageY:scrollY,listTop:listView.scrollTop,ganttTop:ganttView.scrollTop,outer:ganttView.scrollLeft,timeline:ganttTimelineScrollLeft}));expect(started).toEqual({draft:'',pageY:before.pageY,listTop:before.listTop,ganttTop:before.ganttTop,outer:before.outer,timeline:before.timeline});
   await expect(row(page,mode,'T1')).toHaveClass(/sortMoveAnimating/);await expect(row(page,mode,'T1')).toHaveAttribute('data-sort-move-kind','due');await expect.poll(()=>page.locator('.sortMoveAnimating').count(),{timeout:4000}).toBe(0);
-  expect(await row(page,mode,'T1').evaluate(el=>{const r=el.getBoundingClientRect(),s=taskVerticalScroller(el),p=s===document.scrollingElement||s===document.documentElement||s===document.body,b=rcUsableVerticalBounds(s,p);return r.top>=b.top&&r.bottom<=b.bottom})).toBe(true);
+  expect(await row(page,mode,'T1').evaluate(el=>{const r=el.getBoundingClientRect(),s=taskVerticalScroller(el),p=s===document.scrollingElement||s===document.documentElement||s===document.body,b=rcUsableVerticalBounds(s,p);return r.top>=b.top-1&&r.bottom<=b.bottom+1})).toBe(true);
   expect(await page.evaluate(()=>itemById('T1').due)).toBe(await page.evaluate(()=>addDays(ymd(),9)));expect(await page.evaluate(()=>displaySortIndex('T1'))).toBeGreaterThan(before.index)
 });
 

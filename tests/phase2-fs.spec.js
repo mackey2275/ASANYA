@@ -37,7 +37,7 @@ test('DB-01, DB-03, DB-05: picker経由の正常DB読込と最低表示時間', 
   const started=Date.now(); const click=(await dbReadButton(page)).click();
   await expect(page.locator('#dbLoadingBack')).toBeVisible(); await expect(page.locator('#dbLoadingFile')).toHaveText('phase2-normal.json');
   await click; await expect(page.locator('#dbLoadingBack')).toBeHidden(); expect(Date.now()-started).toBeGreaterThanOrEqual(450);
-  await expect(page.locator('.dbName')).toHaveText('phase2-normal.json'); await expect(page.locator('#toast')).toContainText('DB読込成功');
+await expect(page.locator('.dbName')).toHaveText('phase2-normal.json'); await expect(page.locator('#toast')).toContainText((await page.evaluate(()=>CURRENT_SCHEMA_VERSION))==='2.2'?'互換読込':'DB読込成功');
   expect(await page.evaluate(() => data.items.map(x=>x.id))).toEqual(['loaded']);
 });
 
@@ -52,7 +52,7 @@ test('DB-10, DB-11: 旧Schemaを編集して実ハンドルへ2.0で保存しID�
   await makeFile(page,'old','old.json',json([task('legacy-fixed-id','旧タイトル')],'1.1')); await openDb(page,'old');
   await page.locator('#row_legacy-fixed-id .titleText').fill('編集後タイトル'); await page.locator('h1').click();
   expect(await page.evaluate(() => requestDbSave({allowDownload:false,source:'test'}))).toBeTruthy();
-  const saved=await fileJson(page,'old'); expect(saved.schema_version).toBe('2.0'); expect(saved.items[0]).toMatchObject({id:'legacy-fixed-id',title:'編集後タイトル'});
+const saved=await fileJson(page,'old'); expect(saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)); expect(saved.items[0]).toMatchObject({id:'legacy-fixed-id',title:'編集後タイトル'});
 });
 
 test('SAVE-01, SAVE-02: 2秒後の自動保存と再読込後の永続化', async ({page}) => {
@@ -134,7 +134,7 @@ test('MOVE-10, MOVE-11, MOVE-14: 同一DB・重複ID・新Schemaを無変更で�
   await prepareMove(page); await selectTask(page,'A');
   await queueOpen(page,'source'); let dialog=page.waitForEvent('dialog'); let moving=moveButton(page); let d=await dialog; expect(d.message()).toContain('現在DB自身'); await d.accept(); await moving;
   await makeFile(page,'duplicate','duplicate.json',json([task('A','既存A')])); await queueOpen(page,'duplicate'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('同じID'); await d.accept(); await moving;
-  await makeFile(page,'future','future.json',json([], '2.1')); await queueOpen(page,'future'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('このバージョンでは扱えません'); await d.accept(); await moving;
+await makeFile(page,'future','future.json',json([], '9.0')); await queueOpen(page,'future'); dialog=page.waitForEvent('dialog'); moving=moveButton(page); d=await dialog; expect(d.message()).toContain('このバージョンでは扱えません'); await d.accept(); await moving;
   expect((await fileJson(page,'source')).items).toHaveLength(5); expect((await calls(page)).filter(x=>x.op==='requestPermission'&&x.id==='future')).toHaveLength(0);
 });
 
@@ -142,7 +142,7 @@ test('MOVE-15: 旧Schema移動先へ安全に移動し2.0で保存', async ({pag
   const existing=[task('legacy-existing','既存データ',{owner:'既存担当',summary:'既存概要'})];
   await makeFile(page,'source','source.json',json(await sourceItems())); await makeFile(page,'legacy-target','legacy-target.json',json(existing,'1.1')); await openDb(page,'source');
   await selectTask(page,'A'); await queueOpen(page,'legacy-target'); page.once('dialog',d=>d.accept()); await moveButton(page);
-  const saved=await fileJson(page,'legacy-target'); expect(saved.schema_version).toBe('2.0');
+  const saved=await fileJson(page,'legacy-target'); expect(saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));
   expect(saved.items.find(x=>x.id==='legacy-existing')).toMatchObject({id:'legacy-existing',title:'既存データ',owner:'既存担当',summary:'既存概要'});
   expect(saved.items.map(x=>x.id).sort()).toEqual(['A','A1','A11','A2','legacy-existing']);
 });

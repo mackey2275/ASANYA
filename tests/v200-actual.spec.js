@@ -8,7 +8,7 @@ async function drag(page,locator,dx){await locator.scrollIntoViewIfNeeded();cons
 test.beforeEach(async({page})=>open(page));
 
 test('GANTT-ACTUAL-SCHEMA-01: 旧Schema実績をuserとしてSchema 2.0保存',async({page})=>{
-  await setData(page,[task('legacy','旧実績',{actual_start:'2026-07-01',actual_end:'2026-07-03'})],'1.7');const result=await page.evaluate(()=>({item:itemById('legacy'),saved:persistableData()}));expect(result.item).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.saved.schema_version).toBe('2.0');expect(result.saved.items[0]).not.toHaveProperty('planned_start');
+await setData(page,[task('legacy','旧実績',{actual_start:'2026-07-01',actual_end:'2026-07-03'})],'1.7');const result=await page.evaluate(()=>({item:itemById('legacy'),saved:persistableData()}));expect(result.item).toMatchObject({actual_start_source:'user',actual_end_source:'user'});expect(result.saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));expect(result.saved.items[0]).not.toHaveProperty('planned_start');
 });
 
 test('GANTT-ACTUAL-VIEW-01: 未設定・進行中・完了・同日の実績表示と時間軸拡張',async({page})=>{

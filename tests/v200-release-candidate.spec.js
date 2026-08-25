@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const fs=require('node:fs');
 const {APP,APP_FS_PATH}=require('./helpers/app-target');
-const expectedProduct=APP.includes('v211_dev')?'ASANYA v2.1.1-dev':APP.includes('v211')?'ASANYA v2.1.1':APP.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const expectedSchema=APP.includes('v220')?'2.2':'2.0',expectedProduct=APP.includes('v220_dev')?'ASANYA v2.2.0-dev':APP.includes('v220')?'ASANYA v2.2.0':APP.includes('v211_dev')?'ASANYA v2.1.1-dev':APP.includes('v211')?'ASANYA v2.1.1':APP.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const task=(id,extra={})=>({id,parentId:'',state:'',impact:'',title:id,owner:'owner',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,planned_duration_days:1,...extra});
 async function fresh(page,items){await page.setViewportSize({width:1680,height:900});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>applyJsonObject({schema_version:'1.9',items:xs},'release','release.json',null,{remember:false,writePermissionGranted:false}),items);await page.evaluate(()=>setMode('team'));await page.waitForTimeout(60)}
 
@@ -11,7 +11,7 @@ test('release static branding, schema, help, favicon and compatibility IDs',asyn
   for(const key of['asana_style_task_manager_handles_v1','asana-task-db','asana-copy-save','asana-new-db-save'])expect(html).toContain(key);
   await page.goto(APP); await expect(page).toHaveTitle(expectedProduct); const h=page.locator('h1'); await expect(h).toContainText(expectedProduct);
   const circles=h.locator('svg[aria-hidden="true"] circle'); await expect(circles).toHaveCount(3); await expect(circles.first()).toHaveAttribute('fill','#22d34f');
-  await expect(page.locator('.info')).toHaveText(expectedProduct+' / schema_version 2.0');
+  await expect(h.locator('.schemaMeta')).toHaveText('schema_version '+expectedSchema);
   await expect(h.locator('svg')).toHaveCSS('transform',/matrix\(1, 0, 0, 1, 0, -2\)/);
 });
 
@@ -29,5 +29,5 @@ test('release basic render uses Schema 1.9 and ordinary Project render has no vi
   const items=Array.from({length:36},(_,i)=>task(`T${i+1}`,{due:`2026-08-${String((i%20)+1).padStart(2,'0')}`,sortOrder:(i+1)*1000})); await fresh(page,items);
   await page.evaluate(()=>renderedTaskRow('T16').scrollIntoView({block:'center'})); const before=await page.evaluate(()=>({y:scrollY,top:renderedTaskRow('T16').getBoundingClientRect().top,schema:data.schema_version}));
   await page.evaluate(()=>{const i=data.items.findIndex(x=>x.id==='T16');chg(i,'owner','changed');render()}); await page.waitForTimeout(120); const after=await page.evaluate(()=>({y:scrollY,top:renderedTaskRow('T16').getBoundingClientRect().top,schema:data.schema_version}));
-  expect(before.schema).toBe('2.0'); expect(after.schema).toBe('2.0'); expect(Math.abs(after.top-before.top)).toBeLessThanOrEqual(1); expect(Math.abs(after.y-before.y)).toBeLessThanOrEqual(1);
+expect(before.schema).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)); expect(after.schema).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)); expect(Math.abs(after.top-before.top)).toBeLessThanOrEqual(1); expect(Math.abs(after.y-before.y)).toBeLessThanOrEqual(1);
 });

@@ -51,7 +51,7 @@ test('v2 Access 新しいDB: CancelはA不変、成功時だけ空Bへ直接移�
   const sourceBefore=await page.evaluate(()=>__fsMock.snapshot('source').text);await page.locator('#newDbBtn').click();await page.locator('#newDbNameCancel').click();
   expect(await page.evaluate(()=>({loaded:dbDataLoaded,name:currentDbName,ids:data.items.map(x=>x.id)}))).toEqual({loaded:true,name:'source.json',ids:['source-task']});expect(await page.evaluate(()=>__fsMock.snapshot('source').text)).toBe(sourceBefore);
   await makeDirectory(page,'new-dir');await page.locator('#newDbBtn').click();await page.locator('#newDbNameInput').fill('new-db');await page.locator('#newDbNameNext').click();await page.locator('#newDbFolderNext').click();await expect.poll(()=>page.evaluate(()=>currentDbName)).toBe('new-db.json');const newId=await page.evaluate(()=>__fsMock.directoryEntries('new-dir')[0][1]);
-  expect(await page.evaluate(id=>JSON.parse(__fsMock.snapshot(id).text),newId)).toEqual({schema_version:'2.0',items:[]});await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbSaveBtn')).toHaveText('現在DBのコピーを保存');await expect(page.locator('#newDbBtn')).toBeVisible();
+expect(await page.evaluate(id=>JSON.parse(__fsMock.snapshot(id).text),newId)).toEqual(app.includes('v220_dev')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]});await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbSaveBtn')).toHaveText('現在DBのコピーを保存');await expect(page.locator('#newDbBtn')).toBeVisible();
 });
 
 test('v1.5.7 新しいDB: 未保存変更の保存失敗時は現在DBを維持',async({page})=>{

@@ -22,7 +22,7 @@ test.beforeEach(async({page})=>boot(page));
 test('GANTT-SCHEMA-01: Schema 1.8と1.5/1.6互換、未設定を補完せず開始日を保存しない',async({page})=>{
   await setData(page,[task('legacy','旧Schema',{due:'2026-08-20'})],'1.5');
   const result=await page.evaluate(()=>({current:CURRENT_SCHEMA_VERSION,loadedSchemaVersion,schemaMigrationPending,item:data.items[0],saved:persistableData()}));
-  expect(result.current).toBe('2.0');expect(result.loadedSchemaVersion).toBe('1.5');expect(result.schemaMigrationPending).toBe(true);expect(result.item).not.toHaveProperty('planned_duration_days');expect(result.saved.schema_version).toBe('2.0');expect(result.saved.items[0]).not.toHaveProperty('planned_start');expect(result.saved.items[0]).not.toHaveProperty('planned_start_date');
+expect(result.current).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));expect(result.loadedSchemaVersion).toBe('1.5');expect(result.schemaMigrationPending).toBe(true);expect(result.item).not.toHaveProperty('planned_duration_days');expect(result.saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));expect(result.saved.items[0]).not.toHaveProperty('planned_start');expect(result.saved.items[0]).not.toHaveProperty('planned_start_date');
 });
 
 test('GANTT-DURATION-01: 空欄・0・1・複数日を保持し不正値を拒否して保存再読込',async({page})=>{
@@ -30,7 +30,7 @@ test('GANTT-DURATION-01: 空欄・0・1・複数日を保持し不正値を拒�
   const values=await page.locator('.ganttRow[data-task-id]').evaluateAll(rows=>Object.fromEntries(rows.map(r=>[r.dataset.taskId,r.querySelector('.plannedDays')?.value])));expect(values).toEqual({empty:'',zero:'0',one:'1',multi:'3'});
   const multi=page.locator('#row_multi .plannedDays');await multi.fill('5');await multi.blur();expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);
   const pending=page.waitForEvent('dialog');await multi.fill('-1');const blur=multi.blur();const dialog=await pending;expect(dialog.message()).toContain('0以上の整数');await dialog.accept();await blur;expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);
-  expect(await page.evaluate(()=>requestDbSave({allowDownload:false,source:'test'}))).toBe(true);await page.evaluate(()=>__fsMock.queueOpen('db'));await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);expect(await page.evaluate(()=>JSON.parse(__fsMock.snapshot('db').text).schema_version)).toBe('2.0');
+  expect(await page.evaluate(()=>requestDbSave({allowDownload:false,source:'test'}))).toBe(true);await page.evaluate(()=>__fsMock.queueOpen('db'));await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();expect(await page.evaluate(()=>itemById('multi').planned_duration_days)).toBe(5);expect(await page.evaluate(()=>JSON.parse(__fsMock.snapshot('db').text).schema_version)).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));
 });
 
 test('GANTT-DATE-01: 暦日の開始日計算と境界',async({page})=>{
@@ -101,7 +101,7 @@ test('GANTT-DRAG-HIER-01: 明示親dragは子孫期限を動かさず、子drag�
 });
 
 test('GANTT-DRAG-DEP-SAVE-01: FS/FF再評価、整数日スナップ、JSON保存値',async({page})=>{
-  await showGanttData(page,[task('A','A',{planned_duration_days:1,due:'2026-08-10'}),task('B','B',{planned_duration_days:1,due:'2026-08-12',dependencies:[{task_id:'A',type:'finish_to_start'}]}),task('C','C',{planned_duration_days:1,due:'2026-08-11',dependencies:[{task_id:'A',type:'finish_to_finish'}]})]);const related=await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}));await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),2*28+10);await expect(page.locator('.dependencyConflict')).toHaveCount(2);expect(await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}))).toEqual(related);const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe('2.0');expect(saved.items.find(x=>x.id==='A')).toMatchObject({due:'2026-08-12',planned_duration_days:1});expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_start');await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),-2*28-9);await expect(page.locator('.dependencyConflict')).toHaveCount(0);
+  await showGanttData(page,[task('A','A',{planned_duration_days:1,due:'2026-08-10'}),task('B','B',{planned_duration_days:1,due:'2026-08-12',dependencies:[{task_id:'A',type:'finish_to_start'}]}),task('C','C',{planned_duration_days:1,due:'2026-08-11',dependencies:[{task_id:'A',type:'finish_to_finish'}]})]);const related=await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}));await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),2*28+10);await expect(page.locator('.dependencyConflict')).toHaveCount(2);expect(await page.evaluate(()=>({B:itemById('B').due,C:itemById('C').due}))).toEqual(related);const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));expect(saved.items.find(x=>x.id==='A')).toMatchObject({due:'2026-08-12',planned_duration_days:1});expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_start');await mouseDrag(page,page.locator('.ganttBar[data-task-id="A"]'),-2*28-9);await expect(page.locator('.dependencyConflict')).toHaveCount(0);
 });
 
 test('GANTT-PARENT-01: 親自身計画を優先し子孫包含を日付範囲で判定',async({page})=>{

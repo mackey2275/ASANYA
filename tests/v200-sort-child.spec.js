@@ -72,7 +72,7 @@ test('PROJECT-SORT-DUE-ONLY-04: provisional key does not create bars, warnings, 
   await expect(page.locator('.ganttRow[data-task-id="A"] .ganttBar,.ganttRow[data-task-id="A"] .ganttMilestone')).toHaveCount(0);
   await expect(page.locator('.ganttRow[data-task-id="P"] .ganttBar,.ganttRow[data-task-id="P"] .ganttMilestone')).toHaveCount(0);
   const saved=await page.evaluate(()=>persistableData());
-  expect(saved.schema_version).toBe('2.0');
+expect(saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));
   expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_duration_days');
   expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('planned_start');
   expect(saved.items.find(x=>x.id==='A')).not.toHaveProperty('sort_start');
