@@ -66,7 +66,10 @@ test('INPUT-08, INPUT-09, INPUT-10: ドラフト位置固定・フォーカス�
 
 test('INPUT-12, INPUT-13: 半角・全角d/Dと数字を日付へ変換',async({page})=>{
   for(const [keys,days] of [['d0',0],['d1',1],['d9',9],['ｄ１',1],['Ｄ１',1]]){
-    const due=page.locator('#b_due'); await due.fill(''); await due.pressSequentially(keys); await expect(due).toHaveValue(addDaysText(days));
+    const before=await page.evaluate(()=>data.items.length),due=page.locator('#b_due');
+    await due.fill(''); await due.pressSequentially(keys);
+    await expect.poll(()=>page.evaluate(()=>data.items.length)).toBe(before+1);
+    expect(await page.evaluate(()=>data.items.at(-1)?.due)).toBe(addDaysText(days).replaceAll('/','-'));
   }
 });
 

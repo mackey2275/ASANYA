@@ -2,8 +2,8 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
-const isV220=app.includes('v220_dev'),expectedSchema=isV220?'2.2':'2.0';
-const expectedProduct=isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV230=app.includes('v230'),isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230,expectedSchema=isV220?'2.2':'2.0';
+const expectedProduct=isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {

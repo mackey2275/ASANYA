@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
-const EMPTY_DB=APP.includes('v220_dev')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]};
+const EMPTY_DB=APP.includes('v220_dev')||APP.includes('pbl002_')||APP.includes('v230')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]};
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 const json=items=>JSON.stringify({schema_version:'1.8',items});
 async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload();await expect(page.locator('#dbStartScreen')).toBeVisible()}

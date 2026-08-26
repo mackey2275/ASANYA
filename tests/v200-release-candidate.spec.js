@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const fs=require('node:fs');
 const {APP,APP_FS_PATH}=require('./helpers/app-target');
-const expectedSchema=APP.includes('v220')?'2.2':'2.0',expectedProduct=APP.includes('v220_dev')?'ASANYA v2.2.0-dev':APP.includes('v220')?'ASANYA v2.2.0':APP.includes('v211_dev')?'ASANYA v2.1.1-dev':APP.includes('v211')?'ASANYA v2.1.1':APP.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV230=APP.includes('v230'),isPbl002=APP.includes('pbl002_'),expectedSchema=APP.includes('v220')||isPbl002||isV230?'2.2':'2.0',expectedProduct=isV230?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':APP.includes('v220')||isPbl002?'ASANYA v2.2.0':APP.includes('v211_dev')?'ASANYA v2.1.1-dev':APP.includes('v211')?'ASANYA v2.1.1':APP.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const task=(id,extra={})=>({id,parentId:'',state:'',impact:'',title:id,owner:'owner',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,planned_duration_days:1,...extra});
 async function fresh(page,items){await page.setViewportSize({width:1680,height:900});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(xs=>applyJsonObject({schema_version:'1.9',items:xs},'release','release.json',null,{remember:false,writePermissionGranted:false}),items);await page.evaluate(()=>setMode('team'));await page.waitForTimeout(60)}
 
