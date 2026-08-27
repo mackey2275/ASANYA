@@ -1,6 +1,6 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
-const expectedProduct=APP.includes('v230')?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':'ASANYA v2.2.0';
+const expectedProduct=APP.includes('v240')?'ASANYA v2.4.0':APP.includes('v230')||APP.includes('task_detail_phase')?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':'ASANYA v2.2.0';
 
 const task=(id='T1')=>({id,parentId:'',state:'未着手',impact:'',title:id,owner:'',due:'',planned_duration_days:null,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000});
 async function boot(page,markdown='',schema='2.2'){

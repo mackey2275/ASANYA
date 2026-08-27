@@ -2,8 +2,8 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
-const isV230=app.includes('v230'),isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230,expectedSchema=isV220?'2.2':'2.0';
-const expectedProduct=isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240,expectedSchema=isV220?'2.2':'2.0';
+const expectedProduct=isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -177,19 +177,19 @@ test('DEP-08: FFで後工程進行中なら前工程を未完了化できる', a
 
 test('DEP-10～DEP-14機械判定部: 条件変更・自己依存・階層を含む循環・文言', async ({ page }) => {
   await setData(page, [{id:'a',title:'A'}, {id:'b',title:'B',state:'進行中',dependencies:[{task_id:'a',type:'finish_to_finish'}]}, {id:'c',title:'C',dependencies:[{task_id:'b',type:'finish_to_start'}]}]);
-  let msg = await alertFrom(page, () => page.evaluate(() => { relationOpenId='b'; relationEditPredId='a'; relationEditSuccId='b'; document.body.insertAdjacentHTML('beforeend','<select id="relEditType"><option value="finish_to_start" selected></option></select>'); commitDependencyTypeEdit('a','b'); }));
+  let msg = await alertFrom(page, () => page.evaluate(() => { document.getElementById('relEditType')?.remove();relationOpenId='b'; relationEditPredId='a'; relationEditSuccId='b'; document.body.insertAdjacentHTML('beforeend','<select id="relEditType"><option value="finish_to_start" selected></option></select>'); commitDependencyTypeEdit('a','b'); }));
   expect(msg).toContain('前工程が未完了'); expect(msg).not.toContain('論理的');
   await page.evaluate(() => { document.getElementById('relEditType')?.remove(); itemById('b').dependencies[0].type='finish_to_start'; relationOpenId='b'; relationEditPredId='a'; relationEditSuccId='b'; document.body.insertAdjacentHTML('beforeend','<select id="relEditType"><option value="finish_to_finish" selected></option></select>'); commitDependencyTypeEdit('a','b'); });
   expect(await page.evaluate(() => itemById('b').dependencies[0].type)).toBe('finish_to_finish');
-  msg = await alertFrom(page, () => page.evaluate(() => {
-    document.getElementById('relEditType')?.remove(); relationOpenId='a'; relationSelectedTaskId='a'; relationFormDirection='predecessor';
+  await page.evaluate(() => {
+    document.getElementById('relEditType')?.remove(); document.getElementById('relType')?.remove(); relationOpenId='a'; relationSelectedTaskId='a'; relationFormDirection='predecessor';
     document.body.insertAdjacentHTML('beforeend','<select id="relType"><option value="finish_to_start" selected></option></select>'); addDependencyFromForm();
-  }));
-  expect(msg).toContain('自分自身'); expect(await page.evaluate(() => itemById('a').dependencies)).toEqual([]);
+  });
+  await expect(page.locator('#toast')).toContainText('同じタスク自身'); expect(await page.evaluate(() => itemById('a').dependencies)).toEqual([]);
   await page.evaluate(() => { document.getElementById('relType')?.remove(); });
   await setData(page, [{id:'parent',title:'親'}, {id:'child',parentId:'parent',title:'子'}]);
   msg = await alertFrom(page, () => page.evaluate(() => {
-    relationOpenId='child'; relationSelectedTaskId='parent'; relationFormDirection='predecessor';
+    document.getElementById('relType')?.remove(); relationOpenId='child'; relationSelectedTaskId='parent'; relationFormDirection='predecessor';
     document.body.insertAdjacentHTML('beforeend','<select id="relType"><option value="finish_to_start" selected></option></select>'); addDependencyFromForm();
   }));
   expect(msg).toContain('循環依存'); expect(msg).toContain('親 → 子 → 親');

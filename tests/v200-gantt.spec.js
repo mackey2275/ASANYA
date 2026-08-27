@@ -39,9 +39,9 @@ test('GANTT-DATE-01: 暦日の開始日計算と境界',async({page})=>{
 });
 
 test('GANTT-VIEW-01: Project統合表示と日程不足',async({page})=>{
-  await setData(page,[task('due-only','期限のみ',{due:'2026-08-20'}),task('duration-only','日数のみ',{planned_duration_days:3}),task('none','両方なし')]);await project(page);
+  await setData(page,[task('due-only','期限のみ',{due:'2026-08-20'}),task('duration-only','日数のみ',{planned_duration_days:3}),task('none','両方なし')]);const before=await page.evaluate(()=>JSON.stringify(data.items));await project(page);
   await expect(page.locator('#projectViewControls')).toBeVisible();await expect(page.locator('#ganttView')).toBeVisible();await expect(page.locator('#listView')).toBeHidden();await expect(page.locator('.ganttHeader th[data-c="planned"]')).toHaveText('計画日数');
-  await expect(page.locator('.ganttBar,.ganttMilestone')).toHaveCount(0);await expect(page.locator('.ganttMissing')).toHaveCount(3);
+  await expect(page.locator('.ganttBar,.ganttMilestone')).toHaveCount(0);await expect(page.locator('.ganttMissing:visible')).toHaveCount(0);await expect(page.locator('.ganttDueOnlyMarker')).toHaveCount(1);expect(await page.evaluate(()=>({items:JSON.stringify(data.items),undo:undoStack.length}))).toEqual({items:before,undo:0});
   await page.locator('#mPersonal').click();await expect(page.locator('#projectViewControls')).toBeHidden();await expect(page.locator('#ganttView')).toBeHidden();
 });
 
