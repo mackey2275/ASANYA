@@ -26,7 +26,7 @@ test('PHASE4-ROLL-03 daily/weekly/biweekly/monthly/bimonthly/yearlyを同一task
 });
 
 test('PHASE4-ROLL-04 rollover Undo/Redoは全fieldを1 transactionで復元',async({page})=>{
-  const before=task('R',{state:'進行中',repeat:'毎日',recurrence_rule:{type:'daily'},actual_start:'2026-08-24',actual_end:'2026-08-25',actual_start_source:'user',actual_end_source:'system'});await boot(page,[before]);await page.locator('#row_R .doneBtn').click();await page.keyboard.press('Control+z');expect(await value(page,'R')).toEqual(before);expect(await page.evaluate(()=>data.items.length)).toBe(1);await page.keyboard.press('Control+y');const after=await value(page,'R');expect(after).toMatchObject({id:'R',due:'2026-08-26',state:'',completed:false,repeat:'毎日'});expect(after.actual_start).toBeUndefined();expect(await page.evaluate(()=>data.items.length)).toBe(1)
+  const before=task('R',{state:'進行中',repeat:'毎日',recurrence_rule:{type:'daily'},actual_start:'2026-08-24',actual_end:'2026-08-25',actual_start_source:'user',actual_end_source:'system'});await boot(page,[before]);const normalizedBefore=await value(page,'R');await page.locator('#row_R .doneBtn').click();await page.keyboard.press('Control+z');expect(await value(page,'R')).toEqual(normalizedBefore);expect(await page.evaluate(()=>data.items.length)).toBe(1);await page.keyboard.press('Control+y');const after=await value(page,'R');expect(after).toMatchObject({id:'R',due:'2026-08-26',state:'',completed:false,repeat:'毎日'});expect(after.actual_start).toBeUndefined();expect(await page.evaluate(()=>data.items.length)).toBe(1)
 });
 
 test('PHASE4-ROLL-05 次回計算不能はdata/historyを完全no-opにして通知',async({page})=>{

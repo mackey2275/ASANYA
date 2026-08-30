@@ -3,14 +3,14 @@ const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
-const json=items=>JSON.stringify({schema_version:'1.5',items});
+const json=items=>JSON.stringify({schema_version:app.includes('v250')?'2.5':'1.5',...(app.includes('v250')?{workspace_info_markdown:''}:{}),items});
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(app);
   await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name);});await page.reload();
-  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}));
+  await page.evaluate(()=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[]},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}));
 }
-async function setData(page,items){await page.evaluate(async items=>applyJsonObject({schema_version:'1.5',items},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}),items);}
+async function setData(page,items){await page.evaluate(async items=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items},'Playwright','phase3b.json',null,{remember:false,writePermissionGranted:false}),items);}
 async function makeFile(page,id,name,text){await page.evaluate(({id,name,text})=>__fsMock.create(id,{name,text}),{id,name,text});}
 async function queueOpen(page,id){await page.evaluate(id=>__fsMock.queueOpen(id),id);}
 async function openDb(page,id){await queueOpen(page,id);await page.locator('#dbReadBtn').click();await expect(page.locator('#dbLoadingBack')).toBeHidden();}

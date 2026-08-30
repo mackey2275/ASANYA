@@ -7,10 +7,10 @@ async function boot(page){
   await page.goto(app);
   await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name);});
   await page.reload();
-  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'Playwright','phase3.json',null,{remember:false,writePermissionGranted:false}));
+  await page.evaluate(()=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[]},'Playwright','phase3.json',null,{remember:false,writePermissionGranted:false}));
 }
 async function setData(page,items){
-  await page.evaluate(async items=>applyJsonObject({schema_version:'1.5',items},'Playwright','phase3.json',null,{remember:false,writePermissionGranted:false}),items);
+  await page.evaluate(async items=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items},'Playwright','phase3.json',null,{remember:false,writePermissionGranted:false}),items);
 }
 async function blankCreate(page,title,due=''){
   await page.locator('#b_title').fill(title); await page.locator('#b_title').press('Enter');

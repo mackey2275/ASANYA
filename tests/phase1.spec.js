@@ -2,8 +2,8 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
-const isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240,expectedSchema=isV220?'2.2':'2.0';
-const expectedProduct=isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV250=app.includes('v250'),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=isV250?'2.5':isV220?'2.2':'2.0';
+const expectedProduct=isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -56,7 +56,7 @@ test('UI-01～UI-04, UI-08, SAVE-07: 基準版スモーク', async ({ page }) =>
 
 test('DB-07～DB-09, DB-11: テストJSONの拒否・互換読込・ID保持', async ({ page }) => {
   await setData(page, [{ id: 'baseline', title: '現在DB' }]);
-  for (const [name, expected] of [['phase1-invalid-no-items.json', 'baseline'], [isV220?'phase1-future-v220.json':'phase1-future.json', 'baseline']]) {
+  for (const [name, expected] of [['phase1-invalid-no-items.json', 'baseline'], [isV250?'phase1-future-v250.json':isV220?'phase1-future-v220.json':'phase1-future.json', 'baseline']]) {
     const dialog = page.waitForEvent('dialog');
     await page.locator('#jsonFile').setInputFiles(fixture(name));
     await (await dialog).accept();

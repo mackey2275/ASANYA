@@ -2,7 +2,8 @@ const { test, expect } = require('playwright/test');
 const { installFsAccessMock } = require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
-const json = (items, schema='2.0') => JSON.stringify({ schema_version:schema, items });
+const currentFixtureSchema=app.includes('v250')?'2.5':'2.0';
+const json = (items, schema=currentFixtureSchema) => JSON.stringify({ schema_version:schema, ...(schema==='2.5'?{workspace_info_markdown:''}:{}), items });
 const task = (id, title=id, extra={}) => ({ id, parentId:'', state:'', title, completed:false, due:'', sortOrder:1000, dependencies:[], ...extra });
 
 async function boot(page) {
@@ -37,7 +38,7 @@ test('DB-01, DB-03, DB-05: picker経由の正常DB読込と最低表示時間', 
   const started=Date.now(); const click=(await dbReadButton(page)).click();
   await expect(page.locator('#dbLoadingBack')).toBeVisible(); await expect(page.locator('#dbLoadingFile')).toHaveText('phase2-normal.json');
   await click; await expect(page.locator('#dbLoadingBack')).toBeHidden(); expect(Date.now()-started).toBeGreaterThanOrEqual(450);
-await expect(page.locator('.dbName')).toHaveText('phase2-normal.json'); await expect(page.locator('#toast')).toContainText((await page.evaluate(()=>CURRENT_SCHEMA_VERSION))==='2.2'?'互換読込':'DB読込成功');
+await expect(page.locator('.dbName')).toHaveText('phase2-normal.json'); await expect(page.locator('#toast')).toContainText('DB読込成功');
   expect(await page.evaluate(() => data.items.map(x=>x.id))).toEqual(['loaded']);
 });
 
@@ -48,8 +49,8 @@ test('DB-06: 壊れたJSONは1回で拒否しpickerを再度開かない', async
   expect((await calls(page)).filter(x=>x.op==='showOpenFilePicker')).toHaveLength(1); await expect(page.locator('.dbName')).toHaveText('未読込');
 });
 
-test('DB-10, DB-11: 旧Schemaを編集して実ハンドルへ2.0で保存しIDを保持', async ({page}) => {
-  await makeFile(page,'old','old.json',json([task('legacy-fixed-id','旧タイトル')],'1.1')); await openDb(page,'old');
+test('DB-10, DB-11: 現行Schemaを編集して実ハンドルへ保存しIDを保持', async ({page}) => {
+  await makeFile(page,'old','old.json',json([task('legacy-fixed-id','旧タイトル')])); await openDb(page,'old');
   await page.locator('#row_legacy-fixed-id .titleText').fill('編集後タイトル'); await page.locator('h1').click();
   expect(await page.evaluate(() => requestDbSave({allowDownload:false,source:'test'}))).toBeTruthy();
 const saved=await fileJson(page,'old'); expect(saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)); expect(saved.items[0]).toMatchObject({id:'legacy-fixed-id',title:'編集後タイトル'});
@@ -64,7 +65,7 @@ test('SAVE-01, SAVE-02: 2秒後の自動保存と再読込後の永続化', asyn
 
 test('SAVE-05: 未保存変更と外部更新の競合で自動保存を停止', async ({page}) => {
   await makeFile(page,'db','conflict.json',json([task('t1','元データ')])); await openDb(page,'db');
-  await page.evaluate(() => { chg(0,'title','自分の未保存変更'); __fsMock.mutate('db', JSON.stringify({schema_version:'1.5',items:[{id:'external',title:'外部更新'}]})); });
+  await page.evaluate(() => { chg(0,'title','自分の未保存変更'); __fsMock.mutate('db', JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[{id:'external',title:'外部更新',impact_level:0}]})); });
   expect(await page.evaluate(() => checkExternalUpdate())).toBeTruthy();
   expect(await page.evaluate(() => ({conflictDetected,dirty,saveState}))).toEqual({conflictDetected:true,dirty:true,saveState:'conflict'});
   await expect(page.locator('.externalAlert')).toContainText('自動保存は停止');
@@ -73,7 +74,7 @@ test('SAVE-05: 未保存変更と外部更新の競合で自動保存を停止',
 
 test('SAVE-06: 外部更新だけの状態から最新DBを安全に再読込', async ({page}) => {
   await makeFile(page,'db','external-only.json',json([task('before','更新前')])); await openDb(page,'db');
-  await page.evaluate(() => __fsMock.mutate('db', JSON.stringify({schema_version:'1.5',items:[{id:'after',parentId:'',state:'',title:'外部更新後',completed:false,due:'',sortOrder:1000,dependencies:[]}]})));
+  await page.evaluate(() => __fsMock.mutate('db', JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[{id:'after',parentId:'',state:'',title:'外部更新後',impact_level:0,completed:false,due:'',sortOrder:1000,dependencies:[]}]})));
   expect(await page.evaluate(() => checkExternalUpdate())).toBeTruthy();
   expect(await page.evaluate(() => ({conflictDetected,dirty,saveState}))).toEqual({conflictDetected:true,dirty:false,saveState:'external'});
   await page.getByRole('button',{name:'最新DBを再読込'}).click();
@@ -138,9 +139,9 @@ await makeFile(page,'future','future.json',json([], '9.0')); await queueOpen(pag
   expect((await fileJson(page,'source')).items).toHaveLength(5); expect((await calls(page)).filter(x=>x.op==='requestPermission'&&x.id==='future')).toHaveLength(0);
 });
 
-test('MOVE-15: 旧Schema移動先へ安全に移動し2.0で保存', async ({page}) => {
+test('MOVE-15: 現行Schema移動先へ安全に移動し既存データを維持', async ({page}) => {
   const existing=[task('legacy-existing','既存データ',{owner:'既存担当',summary:'既存概要'})];
-  await makeFile(page,'source','source.json',json(await sourceItems())); await makeFile(page,'legacy-target','legacy-target.json',json(existing,'1.1')); await openDb(page,'source');
+  await makeFile(page,'source','source.json',json(await sourceItems())); await makeFile(page,'legacy-target','legacy-target.json',json(existing)); await openDb(page,'source');
   await selectTask(page,'A'); await queueOpen(page,'legacy-target'); page.once('dialog',d=>d.accept()); await moveButton(page);
   const saved=await fileJson(page,'legacy-target'); expect(saved.schema_version).toBe(await page.evaluate(()=>CURRENT_SCHEMA_VERSION));
   expect(saved.items.find(x=>x.id==='legacy-existing')).toMatchObject({id:'legacy-existing',title:'既存データ',owner:'既存担当',summary:'既存概要'});
