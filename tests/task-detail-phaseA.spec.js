@@ -11,10 +11,10 @@ function pane(page){return page.locator('#taskDetailPane')}
 
 test('DETAIL-A-01 explicit open/close and selected-task follow stay independent',async({page})=>{
   await boot(page,[task('A'),task('B',{sortOrder:2000}),task('C',{sortOrder:3000})]);
-  await expect(pane(page)).toBeHidden();await row(page,'A').click();await expect(pane(page)).toBeHidden();
+  await expect(pane(page)).toBeHidden();await row(page,'A').locator('td').first().click({position:{x:1,y:1}});await expect(pane(page)).toBeHidden();
   await row(page,'A').locator('.taskDetailOpenBtn').click();await expect(pane(page)).toBeVisible();await expect(pane(page).getByLabel('タイトル')).toHaveValue('A');
   await page.evaluate(()=>document.activeElement?.blur());await page.keyboard.press('ArrowDown');await expect(pane(page).getByLabel('タイトル')).toHaveValue('B');
-  await pane(page).locator('.taskDetailPaneClose').click();expect(await page.evaluate(()=>selectedTaskId)).toBe('B');await row(page,'C').click();await expect(pane(page)).toBeHidden();
+  await pane(page).locator('.taskDetailPaneClose').click();expect(await page.evaluate(()=>selectedTaskId)).toBe('B');await row(page,'C').locator('td').first().click({position:{x:1,y:1}});await expect(pane(page)).toBeHidden();
   expect(await page.evaluate(()=>({undo:undoStack.length,dirty}))).toEqual({undo:0,dirty:false});
 });
 

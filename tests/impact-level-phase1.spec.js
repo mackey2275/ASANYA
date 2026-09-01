@@ -6,7 +6,7 @@ const legacyTask=(id,impact,extra={})=>({id,parentId:'',state:'未着手',impact
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await expect(page).toHaveTitle('ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('2.5');
+  await expect(page).toHaveTitle(APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('2.5');
 }
 async function apply(page,schema,items){
   return page.evaluate(({schema,items})=>applyJsonObject({...((schema===null)?{}:{schema_version:schema}),items},'impact-test','impact.json',null,{remember:false,writePermissionGranted:false}),{schema,items});
@@ -102,7 +102,7 @@ test('IMPACT-COMPAT-02 ASANA import boundary maps legacy values through the comm
 });
 
 test('IMPACT-DEFER-01 Task Detail remains unchanged and has no Impact editor',async({page})=>{
-  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=APP.includes('phase2')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
+  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
 });
 
 test('IMPACT-COPY-01 ordinary copy serializes Schema 2.5 without mutating old primary',async({page})=>{

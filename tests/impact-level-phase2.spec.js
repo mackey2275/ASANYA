@@ -32,8 +32,8 @@ test('IMPACT2-SCROLL-01 same-task Impact rerender preserves pane scroll',async({
 });
 
 test('IMPACT2-COLUMNS-01 ToDo and Project place Impact immediately after Child and before Status',async({page})=>{
-  await boot(page);let labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());expect(labels.indexOf('影響度')).toBe(labels.indexOf('子')+1);
-  await page.evaluate(()=>setMode('team'));labels=(await page.locator('#ganttView .ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim());expect(labels.slice(labels.indexOf('子'),labels.indexOf('ステータス')+1)).toEqual(['子','影響度','ステータス']);const cells=await page.locator('.ganttRow[data-task-id="A"] .projectInfoTable td').evaluateAll(es=>es.map(e=>e.querySelector('.impactStars')?'impact':e.querySelector('select')?.getAttribute('onchange')?.includes('changeState')?'state':e.querySelector('.childBtn')?'child':'other'));expect(cells.slice(cells.indexOf('child'),cells.indexOf('state')+1)).toEqual(['child','impact','state'])
+  const impactLabel=(APP.includes('priority_width_followup')||APP.includes('v260'))?'優先度':'影響度';await boot(page);let labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());expect(labels.indexOf(impactLabel)).toBe(labels.indexOf('子')+1);
+  await page.evaluate(()=>setMode('team'));labels=(await page.locator('#ganttView .ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim());expect(labels.slice(labels.indexOf('子'),labels.indexOf('ステータス')+1)).toEqual(['子',impactLabel,'ステータス']);const cells=await page.locator('.ganttRow[data-task-id="A"] .projectInfoTable td').evaluateAll(es=>es.map(e=>e.querySelector('.impactStars')?'impact':e.querySelector('select')?.getAttribute('onchange')?.includes('changeState')?'state':e.querySelector('.childBtn')?'child':'other'));expect(cells.slice(cells.indexOf('child'),cells.indexOf('state')+1)).toEqual(['child','impact','state'])
 });
 
 test('IMPACT2-COLUMNS-02 top-level and child drafts align without premature commit',async({page})=>{

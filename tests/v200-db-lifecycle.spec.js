@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
-const isV250=APP.includes('v250');
+const isV250=(APP.includes('v250')||APP.includes('v260'));
 const EMPTY_DB=isV250?{schema_version:'2.5',workspace_info_markdown:'',items:[]}:APP.includes('v220_dev')||APP.includes('pbl002_')||APP.includes('v230')||APP.includes('v240')||APP.includes('task_detail_phase')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]};
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',...(isV250?{impact_level:0}:{impact:''}),title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 const json=items=>JSON.stringify({schema_version:isV250?'2.5':'1.8',...(isV250?{workspace_info_markdown:''}:{}),items});

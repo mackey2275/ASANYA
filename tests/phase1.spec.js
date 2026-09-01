@@ -2,8 +2,8 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
-const isV250=app.includes('v250'),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=isV250?'2.5':isV220?'2.2':'2.0';
-const expectedProduct=isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV250=(app.includes('v250')||app.includes('v260')),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=isV250?'2.5':isV220?'2.2':'2.0';
+const expectedProduct=app.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {
@@ -111,14 +111,14 @@ test('VIEW-09, HIER-01～HIER-10: 文脈行と論理完了・階層表示', asyn
     { id:'flag', title:'Flag完了', state:'未着手', completed:true, due:yesterday }, { id:'logical', title:'State完了', state:'完了', completed:false, due:yesterday },
     { id:'late', title:'期限超過', state:'進行中', due:yesterday }
   ]);
-  expect(await page.evaluate(() => [isLogicallyComplete(itemById('flag')), isLogicallyComplete(itemById('logical'))])).toEqual([true,true]);
+  expect(await page.evaluate(() => [isLogicallyComplete(itemById('flag')), isLogicallyComplete(itemById('logical'))])).toEqual(isV250?[false,true]:[true,true]);
   await page.locator('#mTeam').click(); await page.getByRole('button', { name: /^進行中 / }).click();
   await expect(page.locator('#row_p')).toHaveClass(/contextRow/); await expect(page.locator('#row_g')).toHaveClass(/contextRow/);
   await page.getByRole('button', { name: /^全 / }).click();
   await expect(page.locator('#row_p .relationTrigger').first()).toHaveClass(/treePending/);
   await expect(page.locator('#row_p .sortBadge')).toHaveText('[1/2]');
   await expect(page.locator('#row_logical .late')).toHaveCount(0); expect(await page.locator('#row_late .late').count()).toBeGreaterThan(0);
-  await page.evaluate(() => { itemById('p').completed = true; render(); }); await expect(page.locator('#row_p .relationTrigger').first()).toHaveClass(/treeWarn/);
+  await page.evaluate(() => { itemById('p').completed = true; render(); }); await expect(page.locator('#row_p .relationTrigger').first()).toHaveClass(isV250?/treePending/:/treeWarn/);
   await page.evaluate(() => { itemById('c').state='完了'; render(); }); await expect(page.locator('#row_p .relationTrigger').first()).not.toHaveClass(/treePending/);
 });
 
@@ -134,35 +134,35 @@ test('HIER-03, HIER-05, HIER-08: 完了状態の統一解除・未完了孫・�
   ]);
   await page.locator('#vAll').click(); await page.locator('#mTeam').click();
   await page.locator('#row_dual-flag .doneBtn').click();
-  expect(await page.evaluate(() => ({ completed:itemById('dual-flag').completed, state:itemById('dual-flag').state, logical:isLogicallyComplete(itemById('dual-flag')) }))).toEqual({ completed:false, state:'', logical:false });
+  expect(await page.evaluate(() => ({ completed:itemById('dual-flag').completed, state:itemById('dual-flag').state, logical:isLogicallyComplete(itemById('dual-flag')) }))).toEqual(isV250?{ completed:false, state:'完了', logical:true }:{ completed:false, state:'', logical:false });
   await page.locator('#row_dual-state select').first().selectOption({ label:'未着手' });
-  expect(await page.evaluate(() => ({ completed:itemById('dual-state').completed, state:itemById('dual-state').state, logical:isLogicallyComplete(itemById('dual-state')) }))).toEqual({ completed:false, state:'未着手', logical:false });
+  expect(await page.evaluate(() => ({ completed:itemById('dual-state').completed, state:itemById('dual-state').state, logical:isLogicallyComplete(itemById('dual-state')) }))).toEqual(isV250?{ completed:true, state:'未着手', logical:false }:{ completed:false, state:'未着手', logical:false });
   await expect(page.locator('#row_p-grand .relationTrigger').first()).toHaveClass(/treePending/);
   await expect(page.locator('#row_p-count .sortBadge')).toHaveText('[0/1]');
 });
 
 test('HIER-11～HIER-12: 親子完了制約', async ({ page }) => {
   await setData(page, [{id:'p',title:'親'}, {id:'c',parentId:'p',title:'子'}]);
-  let msg = await alertFrom(page, () => page.locator('#row_p .doneBtn').click()); expect(msg).toContain('未完了の子・孫タスク');
+  let msg = await alertFrom(page, () => page.locator('#row_p .doneBtn').click()); expect(msg).toContain(isV250?'未解決の子・孫タスク':'未完了の子・孫タスク');
   await page.evaluate(() => { itemById('p').completed=true; itemById('c').completed=true; setView('all'); });
-  msg = await alertFrom(page, () => page.locator('#row_c .doneBtn').click()); expect(msg).toContain('先に親・祖先を未完了へ戻してください');
+  msg = await alertFrom(page, () => page.locator('#row_c .doneBtn').click()); expect(msg).toContain(isV250?'先に親・祖先を再オープン':'先に親・祖先を未完了へ戻してください');
 });
 
-test('DEP-01～DEP-09: FS/FFの開始・完了・再開制約', async ({ page }) => {
+test('DEP-01～DEP-09: FS/FFの開始・解決状態変更制約', async ({ page }) => {
   await setData(page, [{id:'a',title:'A'}, {id:'b',title:'B',dependencies:[{task_id:'a',type:'finish_to_start'}]}]);
   await page.locator('#vAll').click();
   await page.locator('#mTeam').click();
   let msg = await alertFrom(page, () => page.locator('#row_b select').first().selectOption({label:'進行中'})); expect(msg).toContain('前工程が未完了');
   msg = await alertFrom(page, () => page.locator('#row_b .doneBtn').click()); expect(msg).toContain('未完了の前工程');
-  await page.locator('#row_a .doneBtn').click(); await page.locator('#row_b select').first().selectOption({label:'進行中'}); await expect(page.locator('#row_b select').first()).toHaveValue('進行中');
-  msg = await alertFrom(page, () => page.locator('#row_a .doneBtn').click()); expect(msg).toContain('先に後工程を戻してください');
-  const backToUnstarted=page.locator('#row_b select').first().selectOption({label:'未着手'}),actualStartDialog=await page.waitForEvent('dialog');expect(actualStartDialog.message()).toContain('実績開始日');await actualStartDialog.accept();await backToUnstarted;await page.locator('#row_a .doneBtn').click();
-  expect(await page.evaluate(() => itemById('a').completed)).toBeFalsy();
+  await page.locator('#row_a select').first().selectOption({label:'完了'}); await page.locator('#row_b select').first().selectOption({label:'進行中'}); await expect(page.locator('#row_b select').first()).toHaveValue('進行中');
+  await page.evaluate(()=>{delete itemById('a').actual_end;delete itemById('a').actual_end_source;render()});await page.locator('#row_a select').first().selectOption({label:'未着手'});expect(await page.evaluate(()=>({a:itemById('a').state,b:itemById('b').state}))).toEqual({a:'未着手',b:'進行中'});
+  const backToUnstarted=page.locator('#row_b select').first().selectOption({label:'未着手'}),actualStartDialog=await page.waitForEvent('dialog');expect(actualStartDialog.message()).toContain('実績開始日');await actualStartDialog.accept();await backToUnstarted;
+  expect(await page.evaluate(() => itemById('a').state)).toBe('未着手');
   await page.evaluate(() => { itemById('b').dependencies=[{task_id:'a',type:'finish_to_finish'}]; render(); });
   await page.locator('#row_b select').first().selectOption({label:'進行中'}); await expect(page.locator('#row_b select').first()).toHaveValue('進行中');
-  msg = await alertFrom(page, () => page.locator('#row_b .doneBtn').click()); expect(msg).toContain('未完了の前工程');
-  await page.locator('#row_a .doneBtn').click(); await page.locator('#row_b .doneBtn').click();
-  msg = await alertFrom(page, () => page.locator('#row_a .doneBtn').click()); expect(msg).toContain('先に後工程を戻してください');
+  msg = await alertFrom(page, () => page.locator('#row_b select').first().selectOption({label:'完了'})); expect(msg).toContain('未完了の前工程');
+  await page.locator('#row_a select').first().selectOption({label:'完了'}); await page.locator('#row_b select').first().selectOption({label:'完了'});
+  await page.evaluate(()=>{delete itemById('a').actual_end;delete itemById('a').actual_end_source;render()});await page.locator('#row_a select').first().selectOption({label:'未着手'});expect(await page.evaluate(()=>({a:itemById('a').state,b:itemById('b').state}))).toEqual({a:'未着手',b:'完了'});
 });
 
 test('DEP-08: FFで後工程進行中なら前工程を未完了化できる', async ({ page }) => {

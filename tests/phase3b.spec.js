@@ -3,7 +3,7 @@ const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
-const json=items=>JSON.stringify({schema_version:app.includes('v250')?'2.5':'1.5',...(app.includes('v250')?{workspace_info_markdown:''}:{}),items});
+const json=items=>JSON.stringify({schema_version:(app.includes('v250')||app.includes('v260'))?'2.5':'1.5',...((app.includes('v250')||app.includes('v260'))?{workspace_info_markdown:''}:{}),items});
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(app);

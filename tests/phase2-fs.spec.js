@@ -2,7 +2,7 @@ const { test, expect } = require('playwright/test');
 const { installFsAccessMock } = require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
-const currentFixtureSchema=app.includes('v250')?'2.5':'2.0';
+const currentFixtureSchema=(app.includes('v250')||app.includes('v260'))?'2.5':'2.0';
 const json = (items, schema=currentFixtureSchema) => JSON.stringify({ schema_version:schema, ...(schema==='2.5'?{workspace_info_markdown:''}:{}), items });
 const task = (id, title=id, extra={}) => ({ id, parentId:'', state:'', title, completed:false, due:'', sortOrder:1000, dependencies:[], ...extra });
 

@@ -2,7 +2,7 @@ const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
-const isV250=app.includes('v250');
+const isV250=(app.includes('v250')||app.includes('v260'));
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
 const json=(items,schema=isV250?'2.5':'1.8')=>JSON.stringify({schema_version:schema,...(schema==='2.5'?{workspace_info_markdown:''}:{}),items});
 
@@ -16,7 +16,7 @@ async function createTopByUi(page,title,due,days){await page.locator('#b_title')
 async function createChildByUi(page,parentId,title,due,days){await page.locator(`#row_${parentId} td`).first().click();await page.keyboard.press('Insert');const id=await page.evaluate(()=>draftTaskId);const draft=page.locator('.ganttDraftRow');await draft.locator('.titleText').fill(title);await draft.locator('.titleText').press('Enter');await draft.locator('input[id^="d"]').fill(due);await draft.locator('input[id^="d"]').press('Enter');await draft.locator('.ganttInlineInput').fill(String(days));await draft.locator('.ganttInlineInput').press('Enter');return id}
 async function editScheduleByUi(page,id,{due,days}={}){if(await page.locator('#ganttView').isVisible())await page.evaluate(()=>setMode('team'));if(days!==undefined){await page.locator(`#row_${id} .plannedDays`).fill(String(days));await page.locator(`#row_${id} .plannedDays`).blur()}if(due!==undefined){await page.locator(`#row_${id} .dueTxt`).click();const input=page.locator(`#row_${id} input[id^="d"]`);await input.fill(due);await input.press('Enter')}}
 async function showGanttData(page,items){await setData(page,items);await project(page);if(!(await page.locator('#ganttView').isVisible()))await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
-async function mouseDrag(page,locator,dx,dy=0){await locator.scrollIntoViewIfNeeded();await locator.evaluate(el=>{const mark=el.closest('.ganttBar,.ganttMilestone,.ganttDueOnlyMarker'),clip=el.closest('.ganttTimelineClip');if(!mark||!clip||typeof setGanttTimelineScroll!=='function')return;setGanttTimelineScroll(Math.max(0,mark.offsetLeft-clip.clientWidth/2));const dock=document.querySelector('.ganttScrollDock');if(dock)dock.scrollLeft=ganttTimelineScrollLeft});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));const box=await locator.boundingBox();if(!box)throw new Error('drag target is not visible');const x=box.x+box.width/2,y=box.y+box.height/2;await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:5});await page.mouse.up()}
+async function mouseDrag(page,locator,dx,dy=0){await locator.scrollIntoViewIfNeeded();await locator.evaluate(el=>{const mark=el.closest('.ganttBar,.ganttMilestone,.ganttDueOnlyMarker'),clip=el.closest('.ganttTimelineClip');if(!mark||!clip||typeof setGanttTimelineScroll!=='function')return;setGanttTimelineScroll(Math.max(0,mark.offsetLeft-clip.clientWidth/2));const dock=document.querySelector('.ganttScrollDock');if(dock)dock.scrollLeft=ganttTimelineScrollLeft;mark.scrollIntoView({block:'nearest',inline:'center',behavior:'instant'})});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));const box=await locator.boundingBox();if(!box)throw new Error('drag target is not visible');const x=box.x+box.width/2,y=box.y+box.height/2;await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:5});await page.mouse.up()}
 
 test.beforeEach(async({page})=>boot(page));
 
@@ -82,7 +82,7 @@ test('GANTT-META-01: 担当・完了予定・期限超過・論理完了表示',
 
 test('GANTT-PLAN-COL-01: 計画日数列の順序と通常・0日・未設定表示',async({page})=>{
   await showGanttData(page,[task('normal','通常',{planned_duration_days:5,due:'2026-08-14',owner:'山田'}),task('mile','節目',{planned_duration_days:0,due:'2026-08-15',owner:'田中'}),task('none','未設定',{owner:'佐藤'})]);
-  expect((await page.locator('.ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim()).slice(0,isV250?9:8)).toEqual(isV250?['完了','子','影響度','ステータス','タイトル','担当','計画日数','繰返し','期限']:['完了','子','ステータス','タイトル','担当','計画日数','繰返し','期限']);await expect(page.locator('.ganttRow[data-task-id="normal"] .ganttPlanned input')).toHaveValue('5');await expect(page.locator('.ganttRow[data-task-id="mile"] .ganttPlanned input')).toHaveValue('0');await expect(page.locator('.ganttRow[data-task-id="none"] .ganttPlanned input')).toHaveValue('');
+  const priorityFollowup=app.includes('priority_width_followup')||app.includes('pbl024_025')||app.includes('v260'),impactLabel=priorityFollowup?'優先度':'影響度',closeLabel=app.includes('v260')?'終了':'完了';expect((await page.locator('.ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim()).slice(0,isV250?9:8)).toEqual(isV250?[closeLabel,'子',impactLabel,'ステータス','タイトル','担当','計画日数','繰返し','期限']:['完了','子','ステータス','タイトル','担当','計画日数','繰返し','期限']);await expect(page.locator('.ganttRow[data-task-id="normal"] .ganttPlanned input')).toHaveValue('5');await expect(page.locator('.ganttRow[data-task-id="mile"] .ganttPlanned input')).toHaveValue('0');await expect(page.locator('.ganttRow[data-task-id="none"] .ganttPlanned input')).toHaveValue('');
 });
 
 test('GANTT-DRAG-BASIC-01: 実mouse操作の全体移動・左右resize・最小期間・マイルストーン・閾値',async({page})=>{
@@ -125,11 +125,11 @@ test('GANTT-PARENT-UI-03: parent・child・grandchildとsiblingのDue共存を�
   await project(page);const parent=await createTopByUi(page,'三階層親','',20),child=await createChildByUi(page,parent,'三階層子','',8),grand=await createChildByUi(page,child,'三階層孫','2026/8/18',4);await editScheduleByUi(page,child,{due:'2026/8/15'});await editScheduleByUi(page,parent,{due:'2026/8/20'});expect(await page.evaluate(({parent,child,grand})=>({parent:itemById(parent).due,child:itemById(child).due,grand:itemById(grand).due}),{parent,child,grand})).toEqual({parent:'2026-08-20',child:'2026-08-15',grand:'2026-08-18'});const sibling=await createChildByUi(page,parent,'別branch','2026/8/25',3);expect(await page.evaluate(id=>itemById(id).due,sibling)).toBe('2026-08-25');
 });
 
-test('GANTT-HIERARCHY-02: 親子は着手条件ではなく親完了条件、日程上は包含関係',async({page})=>{
+test('GANTT-HIERARCHY-02: 親子は着手条件ではなく親終了条件、日程上は包含関係',async({page})=>{
   await setData(page,[task('parent','親',{due:'2026-08-31',planned_duration_days:31}),task('child','子',{parentId:'parent',due:'2026-08-20',planned_duration_days:16})]);await project(page);
   expect(await page.evaluate(()=>({start:startBlockers(itemById('parent')).length,explicit:plannedScheduleConflicts().length,parent:parentPlanConflicts().length}))).toEqual({start:0,explicit:0,parent:0});
   await page.locator('#row_parent select').first().selectOption('進行中');expect(await page.evaluate(()=>itemById('parent').state)).toBe('進行中');
-  const pending=page.waitForEvent('dialog');const complete=page.locator('#row_parent select').first().selectOption('完了');const dialog=await pending;expect(dialog.message()).toContain('未完了の子・孫タスク');await dialog.accept();await complete;expect(await page.evaluate(()=>itemById('parent').state)).toBe('進行中');
+  await page.locator('#row_parent select').first().selectOption('完了');expect(await page.evaluate(()=>itemById('parent').state)).toBe('完了');const pending=page.waitForEvent('dialog');const close=page.locator('#row_parent .doneBtn').click();const dialog=await pending;expect(dialog.message()).toContain('未解決の子・孫タスク');await dialog.accept();await close;expect(await page.evaluate(()=>itemById('parent').completed)).toBe(false);
   await page.evaluate(()=>setMode('team'));await expect(page.locator('.ganttRow[data-task-id="parent"] .ganttWarn')).toHaveCount(0);await expect(page.locator('.dependencyConflict')).toHaveCount(0);
 });
 

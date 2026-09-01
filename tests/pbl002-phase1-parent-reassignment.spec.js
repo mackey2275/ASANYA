@@ -39,7 +39,7 @@ test('PBL1-04 同じ親はsort/history/renderを変更しないno-op',async({pag
 
 test('PBL1-05 完了階層・依存循環・繰返し境界違反は他データを変えず拒否',async({page})=>{
   const cases=[
-    {items:[task('DONE',{completed:true,state:'完了'}),task('OLD',{parentId:'DONE'}),task('OPEN')],move:['OPEN','DONE'],text:'完了済み'},
+    {items:[task('DONE',{completed:true,state:'完了'}),task('OLD',{parentId:'DONE'}),task('OPEN')],move:['OPEN','DONE'],text:'解決済み'},
     {items:[task('P'),task('T',{dependencies:[{task_id:'P',type:'finish_to_start'}]})],move:['T','P'],text:'循環'},
     {items:[task('R',{repeat:'毎週'}),task('A',{parentId:'R',dependencies:[{task_id:'B',type:'finish_to_start'}]}),task('B',{parentId:'R'})],move:['A',''],text:'繰返しチェックリスト'},
     {items:[task('R',{repeat:'毎週'}),task('Q',{repeat:'毎月'})],move:['Q','R'],text:'複数の繰返し'}

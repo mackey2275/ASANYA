@@ -2,7 +2,7 @@ const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
-const isV250=app.includes('v250');
+const isV250=(app.includes('v250')||app.includes('v260'));
 const task=(id,title=id)=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[]});
 const json=items=>JSON.stringify({schema_version:isV250?'2.5':'1.5',...(isV250?{workspace_info_markdown:''}:{}),items});
 
@@ -70,7 +70,7 @@ test('v1.5.7 DB読込導線: fallback読込はハンドルなしでも読込済�
 test('v1.5.7 UI-05: KPIのラベルと件数は同一行構造',async({page})=>{
   await page.evaluate(items=>applyJsonObject({schema_version:'1.5',items},'Playwright','kpi.json',null,{remember:false,writePermissionGranted:false}),[task('open'),{...task('late'),due:'2020-01-01'}]);
   const cards=page.locator('#kpis .card');await expect(cards).toHaveCount(2);
-  await expect(cards.nth(0).locator('.cn')).toHaveText('未完了');await expect(cards.nth(0).locator('.cv')).toHaveText('2件');
+  await expect(cards.nth(0).locator('.cn')).toHaveText(isV250?'未終了':'未完了');await expect(cards.nth(0).locator('.cv')).toHaveText('2件');
   await expect(cards.nth(1).locator('.cn')).toHaveText('期限超過');await expect(cards.nth(1).locator('.cv')).toHaveText('1件');
   for(let i=0;i<2;i++){const layout=await cards.nth(i).evaluate(el=>({display:getComputedStyle(el).display,tags:[...el.children].map(x=>x.tagName),tops:[...el.children].map(x=>Math.round(x.getBoundingClientRect().top))}));expect(layout.display).toBe('flex');expect(layout.tags).toEqual(['SPAN','SPAN']);expect(Math.abs(layout.tops[0]-layout.tops[1])).toBeLessThanOrEqual(5)}
 });
