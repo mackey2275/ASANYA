@@ -2,7 +2,7 @@ const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
-async function show(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','phase-ab.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#mTeam').click();await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
+async function show(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','phase-ab.json',null,{remember:false,writePermissionGranted:false}),items);await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
 async function order(page){return page.locator('#ganttView .ganttRow[data-task-id]').evaluateAll(rs=>rs.map(r=>r.dataset.taskId))}
 test.beforeEach(async({page})=>boot(page));
 
@@ -32,7 +32,7 @@ test('GANTT-VISUAL-02: 状態別の中空/中実と期限超過実績色の優�
 });
 
 test('DRAFT-FLOW-01: Project Listの新規taskはtitle→due→計画日数',async({page})=>{
-  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'test','draft.json',null,{remember:false}));await page.locator('#mTeam').click();await page.locator('#b_title').fill('新規');await page.locator('#b_title').press('Enter');await expect(page.locator('#b_due')).toBeFocused();await page.locator('#b_due').fill('2026/8/5');await page.locator('#b_due').press('Enter');await expect(page.locator('#b_planned')).toBeFocused();await page.locator('#b_planned').fill('1');await page.locator('#b_planned').press('Enter');expect(await page.evaluate(()=>data.items[0])).toMatchObject({title:'新規',due:'2026-08-05',planned_duration_days:1});
+  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'test','draft.json',null,{remember:false}));await page.evaluate(()=>setMode('team'));await page.locator('#b_title').fill('新規');await page.locator('#b_title').press('Enter');await expect(page.locator('#b_due')).toBeFocused();await page.locator('#b_due').fill('2026/8/5');await page.locator('#b_due').press('Enter');await expect(page.locator('#b_planned')).toBeFocused();await page.locator('#b_planned').fill('1');await page.locator('#b_planned').press('Enter');expect(await page.evaluate(()=>data.items[0])).toMatchObject({title:'新規',due:'2026-08-05',planned_duration_days:1});
 });
 
 test('DRAFT-FLOW-02: child/grandchildはduration確定まで位置固定し確定後sort',async({page})=>{

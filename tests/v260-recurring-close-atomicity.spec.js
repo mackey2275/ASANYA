@@ -29,7 +29,7 @@ test('RC-ATOMIC-05 valid recurring Close keeps same-record rollover and one Undo
 });
 
 test('RC-ATOMIC-06 Status 完了 alone assists Actual but does not rollover or Close',async({page})=>{
-  await boot(page,[task('R',{state:'未着手',due:'2026-09-10'})]);await page.evaluate(()=>changeState(0,'完了'));expect(await page.evaluate(()=>({item:itemById('R'),undo:undoStack.length}))).toMatchObject({item:{id:'R',due:'2026-09-10',state:'完了',completed:false,actual_start:'2026-09-01',actual_end:'2026-09-01'},undo:1});
+  await boot(page,[task('R',{state:'未着手',due:'2026-09-10'})]);await page.evaluate(()=>changeState(0,'完了'));const today=await page.evaluate(()=>ymd());expect(await page.evaluate(()=>({item:itemById('R'),undo:undoStack.length}))).toMatchObject({item:{id:'R',due:'2026-09-10',state:'完了',completed:false,actual_start:today,actual_end:today},undo:1});
 });
 
 test('RC-ATOMIC-07 failed recurring parent Close leaves parent and descendants exact',async({page})=>{

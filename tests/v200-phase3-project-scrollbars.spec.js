@@ -22,7 +22,9 @@ test('PHASE3-SCROLL-02: overall dockとProject outer scrollLeftが双方向同�
   await boot(page);const before=await page.locator('#ganttView .ganttCanvas').boundingBox();
   await page.locator('.projectOuterScrollDock').evaluate(el=>{el.scrollLeft=700;el.dispatchEvent(new Event('scroll'))});await expect.poll(()=>page.evaluate(()=>ganttView.scrollLeft)).toBe(700);const moved=await page.locator('#ganttView .ganttCanvas').boundingBox();expect(Math.round(moved.x-before.x)).toBe(200);
   await page.evaluate(()=>{ganttView.scrollLeft=650;ganttView.dispatchEvent(new Event('scroll'))});await expect.poll(()=>page.locator('.projectOuterScrollDock').evaluate(el=>el.scrollLeft)).toBe(650);
-  await page.locator('.ganttRow[data-task-id="P2"]').click();await expect.poll(()=>page.evaluate(()=>ganttView.scrollLeft)).toBe(650);await expect.poll(()=>page.locator('.projectOuterScrollDock').evaluate(el=>el.scrollLeft)).toBe(650)
+  // Dispatch the user event without Playwright's actionability auto-scroll: the
+  // assertion is about the application's render/selection path, not that helper.
+  await page.locator('.ganttRow[data-task-id="P2"]').evaluate(el=>el.dispatchEvent(new MouseEvent('click',{bubbles:true})));await expect.poll(()=>page.evaluate(()=>ganttView.scrollLeft)).toBe(650);await expect.poll(()=>page.locator('.projectOuterScrollDock').evaluate(el=>el.scrollLeft)).toBe(650)
 });
 
 test('PHASE3-SCROLL-03: schedule dockはtimelineだけを動かしheader/body/Today lineを同期',async({page})=>{

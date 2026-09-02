@@ -21,7 +21,6 @@ test('DBL-A: unloadedはstart screenだけで空・clean・編集不能',async({
   for(const selector of ['.bar','#dbSaveBtn','#kpis','#listView','#ganttView','#projectViewControls','#copilotTab','.shortcutHelp'])await expect(page.locator(selector)).toBeHidden();
   expect(await state(page)).toEqual({loaded:false,name:'未読込',handle:null,items:[],dirty:false,saveState:'unloaded',selected:'',undo:0,redo:0,recent:[],timer:false});await page.keyboard.press('Control+z');await page.keyboard.press('Control+y');expect(await state(page)).toMatchObject({items:[],dirty:false,undo:0,redo:0});
 });
-
 test('DBL-B/C: unloaded New DBのCancelはno-op、成功後だけ空DBをadopt',async({page})=>{
   await page.evaluate(()=>{undoStack.push({sentinel:true});redoStack.push({sentinel:true})});await page.locator('#startNewDbBtn').click();await page.locator('#newDbNameCancel').click();expect(await state(page)).toMatchObject({loaded:false,items:[],dirty:false,undo:1,redo:1});
   await page.evaluate(()=>{mode='team';sortMode='date';view='done';projectView='gantt';filterStates.add('進行中')});await directory(page,'newdir');await startNew(page,'My Tasks','newdir');const newId=await createdFileId(page,'newdir'),newName=(await page.evaluate(id=>__fsMock.snapshot(id).name,newId));
@@ -54,7 +53,7 @@ test('DBL-H/I/J: load Cancel、dirty direct-save、handleなしdirtyのswitch中
 });
 
 test('DBL-K/L: 新DBのtask追加は選択されBへautosave、copyはhistory維持',async({page})=>{
-  await directory(page,'bdir');await startNew(page,'b','bdir');const b=await createdFileId(page,'bdir');await page.locator('#mTeam').click();await page.locator('#b_title').fill('Created');await page.locator('#b_title').press('Enter');await page.locator('#b_due').press('Enter');await page.locator('#b_planned').press('Enter');const id=await page.evaluate(()=>selectedTaskId);expect(id).toBeTruthy();await expect(page.locator(`#row_${id}`)).toHaveClass(/selectedRow/);await expect.poll(()=>page.evaluate(id=>JSON.parse(__fsMock.snapshot(id).text).items.length,b),{timeout:5000}).toBe(1);const history=await page.evaluate(()=>undoStack.length);await file(page,'copy',{name:'copy.json',text:''});await page.evaluate(()=>__fsMock.queueSave('copy'));await page.locator('#dbSaveBtn').click();expect(await page.evaluate(()=>undoStack.length)).toBe(history);expect(await state(page)).toMatchObject({handle:b});
+  await directory(page,'bdir');await startNew(page,'b','bdir');const b=await createdFileId(page,'bdir');await page.locator('#dmProjectDetail').click();await page.locator('#b_title').fill('Created');await page.locator('#b_title').press('Enter');await page.locator('#b_due').press('Enter');await page.locator('#b_planned').press('Enter');const id=await page.evaluate(()=>selectedTaskId);expect(id).toBeTruthy();await expect(page.locator(`#row_${id}`)).toHaveClass(/selectedRow/);await expect.poll(()=>page.evaluate(id=>JSON.parse(__fsMock.snapshot(id).text).items.length,b),{timeout:5000}).toBe(1);const history=await page.evaluate(()=>undoStack.length);await file(page,'copy',{name:'copy.json',text:''});await page.evaluate(()=>__fsMock.queueSave('copy'));await page.locator('#dbSaveBtn').click();expect(await page.evaluate(()=>undoStack.length)).toBe(history);expect(await state(page)).toMatchObject({handle:b});
 });
 
 test('DBL-M/N: startup restore成功は通常UI、失敗・permission promptはstart screen',async({page})=>{

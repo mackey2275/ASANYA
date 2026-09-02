@@ -49,7 +49,7 @@ test('P1-SORT: Projectの日付順は無効、ToDoの日付順は従来どおり
   expect(await page.evaluate(()=>sortMode)).toBe('tree');
   await page.evaluate(()=>setMode('personal'));
   await expect(page.locator('#sDate')).toBeEnabled();
-  await page.locator('#sDate').click();
+  await page.evaluate(()=>setSortMode('date'));
   expect(await page.evaluate(()=>sortMode)).toBe('date');
   expect(await page.locator('#body tr[id^="row_"] .titleText').allTextContents()).toEqual(['early','late']);
 });

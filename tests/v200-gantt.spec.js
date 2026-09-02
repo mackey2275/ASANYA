@@ -8,7 +8,7 @@ const json=(items,schema=isV250?'2.5':'1.8')=>JSON.stringify({schema_version:sch
 
 async function boot(page){await installFsAccessMock(page);await page.goto(app);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload();await page.evaluate(()=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[]},'Playwright','gantt.json',null,{remember:false,writePermissionGranted:false}))}
 async function setData(page,items,schema){await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema||CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items},'Playwright','gantt.json',null,{remember:false,writePermissionGranted:false}),{items,schema})}
-async function project(page){await page.locator('#mTeam').click()}
+async function project(page){await page.locator('#dmProjectDetail').click()}
 async function gantt(page){await project(page);await expect(page.locator('#ganttView')).toBeVisible()}
 async function makeFile(page,id,name,text){await page.evaluate(({id,name,text})=>__fsMock.create(id,{name,text}),{id,name,text})}
 async function openFile(page,id){await page.evaluate(id=>__fsMock.queueOpen(id),id);const button=(await page.locator('#dbStartScreen').isVisible())?page.locator('#startDbReadBtn'):page.locator('#dbReadBtn');await button.click();await expect(page.locator('#dbLoadingBack')).toBeHidden()}
@@ -41,9 +41,9 @@ test('GANTT-DATE-01: 暦日の開始日計算と境界',async({page})=>{
 
 test('GANTT-VIEW-01: Project統合表示と日程不足',async({page})=>{
   await setData(page,[task('due-only','期限のみ',{due:'2026-08-20'}),task('duration-only','日数のみ',{planned_duration_days:3}),task('none','両方なし')]);const before=await page.evaluate(()=>JSON.stringify(data.items));await project(page);
-  await expect(page.locator('#projectViewControls')).toBeVisible();await expect(page.locator('#ganttView')).toBeVisible();await expect(page.locator('#listView')).toBeHidden();await expect(page.locator('.ganttHeader th[data-c="planned"]')).toHaveText('計画日数');
+  await expect(page.locator('#displayModeControls')).toBeVisible();await expect(page.locator('#projectViewControls')).toBeHidden();await expect(page.locator('#ganttView')).toBeVisible();await expect(page.locator('#listView')).toBeHidden();await expect(page.locator('.ganttHeader th[data-c="planned"]')).toHaveText('計画日数');
   await expect(page.locator('.ganttBar,.ganttMilestone')).toHaveCount(0);await expect(page.locator('.ganttMissing:visible')).toHaveCount(0);await expect(page.locator('.ganttDueOnlyMarker')).toHaveCount(1);expect(await page.evaluate(()=>({items:JSON.stringify(data.items),undo:undoStack.length}))).toEqual({items:before,undo:0});
-  await page.locator('#mPersonal').click();await expect(page.locator('#projectViewControls')).toBeHidden();await expect(page.locator('#ganttView')).toBeHidden();
+  await page.locator('#dmTodoTree').click();await expect(page.locator('#projectViewControls')).toBeHidden();await expect(page.locator('#ganttView')).toBeHidden();
 });
 
 test('GANTT-BAR-01: 通常バー・1日バー・マイルストーン',async({page})=>{
@@ -59,8 +59,8 @@ test('GANTT-SUMMARY-01: 親子階層と全子孫による親サマリー',async(
 test('GANTT-UX-01: Project列境界、切替位置、ガント時のショートカット表示',async({page})=>{
   await setData(page,[task('long','長い担当',{owner:'非常に長い担当者名が入っても列を壊さない担当者',planned_duration_days:123,due:'2026-08-20'})]);await project(page);
   const owner=page.locator('#row_long .ownerInput'),planned=page.locator('#row_long .plannedDays');for(const input of [owner,planned]){const bounds=await input.evaluate(el=>{const a=el.getBoundingClientRect(),b=el.closest('td').getBoundingClientRect();return{left:a.left,right:a.right,cellLeft:b.left,cellRight:b.right}});expect(bounds.left).toBeGreaterThanOrEqual(bounds.cellLeft);expect(bounds.right).toBeLessThanOrEqual(bounds.cellRight)}
-  expect(await page.locator('#projectViewControls').evaluate(el=>el.previousElementSibling===document.querySelector('#mTeam').closest('.grp'))).toBe(true);await expect(page.locator('#shortcutHelp')).toContainText('Alt+I＝詳細表示');
-  await page.locator('#mPersonal').click();await expect(page.locator('#projectViewControls')).toBeHidden();
+  await expect(page.locator('#displayModeControls')).toBeVisible();await expect(page.locator('#shortcutHelp')).toContainText('T＝ToDo ツリー順');
+  await page.locator('#dmTodoTree').click();await expect(page.locator('#projectViewControls')).toBeHidden();
 });
 
 test('GANTT-LAYOUT-02: 新規入力の列境界・Project列順・フォント継承',async({page})=>{
@@ -137,14 +137,14 @@ test('GANTT-SHORTCUT-01: 統合ProjectではAlt+Gを廃止しAlt+Iで詳細列�
   await setData(page,[task('shortcut','shortcut')]);await project(page);await expect(page.locator('#shortcutHelp')).not.toContainText('Alt+G');const before=await page.evaluate(()=>({view:projectView,detail:projectDetailVisible}));await page.keyboard.press('Alt+G');expect(await page.evaluate(()=>({view:projectView,detail:projectDetailVisible}))).toEqual(before);await page.keyboard.press('Alt+I');expect(await page.evaluate(()=>projectDetailVisible)).toBe(!before.detail);await expect(page.locator('#ganttView')).toBeVisible();return;
   await setData(page,[task('row','対象',{owner:'担当'})]);await project(page);await expect(page.locator('#shortcutHelp')).toContainText('Alt+G＝ガント切替');
   await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();
-  await page.locator('#b_owner').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.locator('#mTeam').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
-  await page.locator('#b_repeat').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.locator('#mTeam').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
+  await page.locator('#b_owner').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.locator('#dmProjectDetail').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
+  await page.locator('#b_repeat').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.locator('#dmProjectDetail').focus();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
   await page.locator('#row_row td').first().click();await page.keyboard.press('Enter');await expect(page.locator('.draftRow')).toBeVisible();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('.draftRow')).toHaveCount(0);await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
   await page.evaluate(()=>{window.__shortcutAsk=ask('ショートカット抑止確認');return true});await expect(page.locator('.askBack')).toBeVisible();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.locator('.askBack #c').click();await expect(page.locator('.askBack')).toHaveCount(0);await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
   await page.locator('body').click({position:{x:2,y:2}});await page.evaluate(()=>document.body.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true,data:'編集中'})));await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible();await page.evaluate(()=>document.body.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:'編集中'})));await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
   await page.locator('#b_title').focus();await page.evaluate(()=>document.querySelector('#b_title').dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true,data:'未終了'})));await page.evaluate(()=>render());await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');
   for(let i=0;i<3;i++){await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();await page.keyboard.press('Alt+G');await expect(page.locator('#listView')).toBeVisible()}
-  await page.locator('#mPersonal').click();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeHidden();expect(await page.evaluate(()=>projectView)).toBe('list');await page.locator('#mTeam').click();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();
+  await page.locator('#dmTodoTree').click();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeHidden();expect(await page.evaluate(()=>projectView)).toBe('list');await page.locator('#dmProjectDetail').click();await page.keyboard.press('Alt+G');await expect(page.locator('#ganttView')).toBeVisible();
 });
 
 test('GANTT-TODAY-01: 今日線を統合タイムライン全高へ表示',async({page})=>{

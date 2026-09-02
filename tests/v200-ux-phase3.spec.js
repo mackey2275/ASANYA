@@ -1,9 +1,9 @@
-﻿const {test,expect}=require('playwright/test');
+const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
 async function setData(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','ux3.json',null,{remember:false,writePermissionGranted:false}),items)}
-async function show(page,items){await setData(page,items);await page.locator('#mTeam').click();await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
+async function show(page,items){await setData(page,items);await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
 async function drag(page,locator,days){await locator.scrollIntoViewIfNeeded();const b=await locator.boundingBox();if(!b)throw new Error('drag target missing');await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2+days*28,b.y+b.height/2,{steps:6});await page.mouse.up()}
 test.beforeEach(async({page})=>boot(page));
 

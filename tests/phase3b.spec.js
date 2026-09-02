@@ -28,7 +28,6 @@ test('DB-13, DB-14: コピー履歴表示と履歴だけの削除',async({page})
   await expect(page.locator('.latestCopyBtn')).toHaveCount(0);expect(await page.evaluate(()=>lastCopy)).toBeNull();expect(await snapshot(page,'copy')).toBe(before);
   await expect(page.locator('#toast')).toContainText('JSONファイルは削除していません');
 });
-
 test('DB-15: 最近使用DBの履歴だけを削除',async({page})=>{
   await makeFile(page,'one','one.json',json([task('one-task')]));await makeFile(page,'two','two.json',json([task('two-task')]));await openDb(page,'one');await openDb(page,'two');
   // The JS mock handle is not structured-cloneable like a native
@@ -99,7 +98,7 @@ test('SEARCH-07: 外側クリックとEscで検索を閉じる',async({page})=>{
 });
 
 test('REG-01～REG-03: ToDo関係アイコン・切替案内・Project同一タスク編集',async({page})=>{
-  await setData(page,[task('A','前工程'),task('B','後工程',{dependencies:[{task_id:'A',type:'finish_to_start'}],sortOrder:2000})]);await page.locator('#mPersonal').click();
+  await setData(page,[task('A','前工程'),task('B','後工程',{dependencies:[{task_id:'A',type:'finish_to_start'}],sortOrder:2000})]);await page.locator('#dmTodoTree').click();
   const icon=page.locator('#row_B .relationTrigger');await expect(icon).toBeVisible();await icon.click();await expect(page.locator('.todoProjectGuide')).toContainText('依存関係の設定・変更はProjectで行います');expect(await page.evaluate(()=>mode)).toBe('personal');
   await page.getByRole('button',{name:'Projectに切り替えて設定'}).click();await expect.poll(()=>page.evaluate(()=>mode)).toBe('team');await expect(page.locator('#relationPopup')).toBeVisible();await expect(page.locator('.relationTask')).toHaveText('後工程');
   await expect(page.getByRole('button',{name:'＋ 前工程を追加'})).toBeVisible();await expect(page.getByRole('button',{name:'＋ 後工程を追加'})).toBeVisible();

@@ -6,7 +6,7 @@ const legacyTask=(id,impact,extra={})=>({id,parentId:'',state:'未着手',impact
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await expect(page).toHaveTitle(APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('2.5');
+  await expect(page).toHaveTitle(APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('2.5');
 }
 async function apply(page,schema,items){
   return page.evaluate(({schema,items})=>applyJsonObject({...((schema===null)?{}:{schema_version:schema}),items},'impact-test','impact.json',null,{remember:false,writePermissionGranted:false}),{schema,items});

@@ -2,7 +2,7 @@ const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
-async function setData(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','sort-child.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#mTeam').click()}
+async function setData(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','sort-child.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#dmProjectDetail').click()}
 async function gantt(page){await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
 async function ganttOrder(page){return page.locator('#ganttView .ganttRow[data-task-id]').evaluateAll(rows=>rows.map(r=>r.dataset.taskId))}
 async function listOrder(page){return await page.locator('#ganttView').isVisible()?ganttOrder(page):page.locator('#body tr:not(.blank)').evaluateAll(rows=>rows.map(r=>r.id.slice(4)))}
@@ -12,7 +12,6 @@ test.beforeEach(async({page})=>boot(page));
 test('PROJECT-SORT-01: 計画開始日で兄弟stable sortし未設定を後置、保存配列は不変',async({page})=>{
   const items=[task('A','A',{due:'2026-08-22',planned_duration_days:3}),task('B','B',{due:'2026-08-05',planned_duration_days:1,sortOrder:2000}),task('C','C',{due:'2026-08-10',planned_duration_days:1,sortOrder:3000}),task('same1','同日1',{due:'2026-08-12',planned_duration_days:1,sortOrder:4000}),task('same2','同日2',{due:'2026-08-12',planned_duration_days:1,sortOrder:5000}),task('none','未設定',{sortOrder:6000})];await setData(page,items);expect(await listOrder(page)).toEqual(['B','C','same1','same2','A','none']);expect(await page.evaluate(()=>data.items.map(x=>x.id))).toEqual(['A','B','C','same1','same2','none']);await gantt(page);expect(await ganttOrder(page)).toEqual(['B','C','same1','same2','A','none']);expect(await page.evaluate(()=>persistableData().items.map(x=>x.id))).toEqual(['A','B','C','same1','same2','none']);
 });
-
 test('PROJECT-SORT-02: 親計画優先と子孫effective startで階層を維持',async({page})=>{
   const items=[task('A','親A',{due:'2026-08-05',planned_duration_days:5}),task('A1','子A1',{parentId:'A',due:'2026-08-20',planned_duration_days:1,sortOrder:2000}),task('A2','子A2',{parentId:'A',due:'2026-08-10',planned_duration_days:1,sortOrder:3000}),task('B','親B',{due:'2026-08-05',planned_duration_days:1,sortOrder:4000}),task('B1','子B1',{parentId:'B',due:'2026-08-06',planned_duration_days:1,sortOrder:5000}),task('P','親計画なし',{sortOrder:6000}),task('P1','子P1',{parentId:'P',due:'2026-08-20',planned_duration_days:1,sortOrder:7000}),task('P2','子P2',{parentId:'P',due:'2026-08-03',planned_duration_days:1,sortOrder:8000})];await setData(page,items);const expected=['A','A2','A1','P','P2','P1','B','B1'];expect(await listOrder(page)).toEqual(expected);expect(await page.evaluate(()=>effectivePlannedStart(itemById('P')))).toBe('2026-08-03');await gantt(page);expect(await ganttOrder(page)).toEqual(expected);
 });

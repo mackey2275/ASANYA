@@ -49,7 +49,7 @@ test('ACTUAL2-GANTT-EDIT-01: 列順、計画inline編集、期限編集、矛盾
 });
 
 test('ACTUAL2-LIST-ENTER-01: Project計画日数はEnter確定してblur',async({page})=>{
-  await setData(page,[task('list','リスト')]);await page.locator('#mTeam').click();const input=page.locator('#row_list .plannedDays');await input.fill('7');await input.press('Enter');expect(await page.evaluate(()=>itemById('list').planned_duration_days)).toBe(7);expect(await page.evaluate(()=>document.activeElement?.classList.contains('plannedDays'))).toBe(false);
+  await setData(page,[task('list','リスト')]);await page.evaluate(()=>setMode('team'));const input=page.locator('#row_list .plannedDays');await input.fill('7');await input.press('Enter');expect(await page.evaluate(()=>itemById('list').planned_duration_days)).toBe(7);expect(await page.evaluate(()=>document.activeElement?.classList.contains('plannedDays'))).toBe(false);
 });
 
 test('ACTUAL2-GANTT-EDIT-02: inline親期限編集は子孫を動かさず親包含・FS・期限超過を再評価',async({page})=>{

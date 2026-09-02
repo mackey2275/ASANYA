@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
-async function boot(page,items){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','ux.json',null,{remember:false,writePermissionGranted:false}),items);await page.locator('#mTeam').click()}
+async function boot(page,items){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','ux.json',null,{remember:false,writePermissionGranted:false}),items);await page.evaluate(()=>setMode('team'))}
 async function gantt(page){await expect(page.locator('#ganttView')).toBeVisible()}
 
 test('GANTT-SELECTION-01: 最後に操作した行を再描画なしで選択しeditorとInsertを維持',async({page})=>{
@@ -46,10 +46,10 @@ test('SEARCH-GANTT-01: 検索結果からGantt行を選択・縦移動・planへ
 });
 
 test('HIERARCHY-MODE-01: ToDo日付順だけ－/－－、ツリー順とProjectは従来表示',async({page})=>{
-  await boot(page,[task('P','Parent'),task('C','Child',{parentId:'P'}),task('G','Grand',{parentId:'C'}),task('GG','Great',{parentId:'G'})]);await page.locator('#mPersonal').click();await page.locator('#sDate').click();
+  await boot(page,[task('P','Parent'),task('C','Child',{parentId:'P'}),task('G','Grand',{parentId:'C'}),task('GG','Great',{parentId:'G'})]);await page.evaluate(()=>setMode('personal'));await page.evaluate(()=>setSortMode('date'));
   expect(await page.locator('#row_P .dateHierarchyPrefix')).toHaveCount(0);expect(await page.locator('#row_C .dateHierarchyPrefix')).toHaveText('－');expect(await page.locator('#row_G .dateHierarchyPrefix')).toHaveText('－－');expect(await page.locator('#row_GG .dateHierarchyPrefix')).toHaveText('－－');
-  expect(await page.evaluate(()=>data.items.map(x=>x.title))).toEqual(['Parent','Child','Grand','Great']);await page.locator('#sTree').click();expect(await page.locator('.dateHierarchyPrefix')).toHaveCount(0);expect(await page.locator('#row_G .childMark').first()).toHaveText('└');
-  await page.locator('#mTeam').click();expect(await page.locator('.dateHierarchyPrefix')).toHaveCount(0);expect(await page.locator('#row_G .childMark').first()).toHaveText('└');
+  expect(await page.evaluate(()=>data.items.map(x=>x.title))).toEqual(['Parent','Child','Grand','Great']);await page.evaluate(()=>setSortMode('tree'));expect(await page.locator('.dateHierarchyPrefix')).toHaveCount(0);expect(await page.locator('#row_G .childMark').first()).toHaveText('└');
+  await page.evaluate(()=>setMode('team'));expect(await page.locator('.dateHierarchyPrefix')).toHaveCount(0);expect(await page.locator('#row_G .childMark').first()).toHaveText('└');
 });
 
 test('BACKGROUND-SELECTED-01: top-level通常・子灰色・selected水色を優先',async({page})=>{
@@ -73,12 +73,12 @@ test('GANTT-COMPACT-02: rowとstatusをコンパクトに保ちbar/actualをclip
 });
 
 test('TODO-DATE-SORT-01: 新規期限確定後に移動先へ追従・選択・attentionを維持',async({page})=>{
-  await boot(page,[task('late','Late',{due:'2026-08-30'}),task('later','Later',{due:'2026-09-01',sortOrder:2000})]);await page.locator('#mPersonal').click();await page.locator('#sDate').click();await page.locator('#b_title').first().fill('New early');await page.locator('#b_title').first().press('Enter');await page.locator('#b_due').fill('2026-08-01');await page.locator('#b_due').press('Enter');const id=await page.evaluate(()=>selectedTaskId);expect(id).toMatch(/^t-/);await expect(page.locator('#row_'+id)).toHaveClass(/selectedRow/);await expect(page.locator('#row_'+id)).toHaveClass(/sortAttention/);await page.waitForTimeout(2000);await expect(page.locator('#row_'+id)).toHaveClass(/sortAttention/);await page.locator('#row_late .titleText').click();await expect(page.locator('#row_'+id)).not.toHaveClass(/sortAttention/);
+  await boot(page,[task('late','Late',{due:'2026-08-30'}),task('later','Later',{due:'2026-09-01',sortOrder:2000})]);await page.evaluate(()=>setMode('personal'));await page.evaluate(()=>setSortMode('date'));await page.locator('#b_title').first().fill('New early');await page.locator('#b_title').first().press('Enter');await page.locator('#b_due').fill('2026-08-01');await page.locator('#b_due').press('Enter');const id=await page.evaluate(()=>selectedTaskId);expect(id).toMatch(/^t-/);await expect(page.locator('#row_'+id)).toHaveClass(/selectedRow/);await expect(page.locator('#row_'+id)).toHaveClass(/sortAttention/);await page.waitForTimeout(2000);await expect(page.locator('#row_'+id)).toHaveClass(/sortAttention/);await page.locator('#row_late .titleText').click();await expect(page.locator('#row_'+id)).not.toHaveClass(/sortAttention/);
 });
 
 test('COMPOSITE-UX-01: selection・guard・search・sort・ToDo draftを同一sessionで分離',async({page})=>{
   await boot(page,[task('P','Parent',{due:'2026-08-20',planned_duration_days:5}),task('C','Child',{parentId:'P',due:'2026-08-15',planned_duration_days:2}),task('O','Other',{due:'2026-08-30',planned_duration_days:1,sortOrder:3000})]);await gantt(page);
   await page.locator('.ganttRow[data-task-id="C"] .ganttTaskName').click({position:{x:5,y:5}});await page.locator('.ganttRow[data-task-id="C"] .ganttState select').selectOption('進行中');expect(await page.evaluate(()=>itemById('C').actual_start)).toBeTruthy();const back=page.locator('.ganttRow[data-task-id="C"] .ganttState select').selectOption('未着手'),dialog=await page.waitForEvent('dialog');await dialog.dismiss();await back;expect(await page.evaluate(()=>itemById('C').state)).toBe('進行中');
   await page.locator('#taskSearchBtn').click();await page.locator('#taskSearchInput').fill('Other');await page.locator('.taskSearchResult').click();await expect(page.locator('.ganttRow[data-task-id="O"]')).toHaveClass(/searchAttention/);await page.locator('.ganttRow[data-task-id="O"] .ganttDue .dueTxt').click();const due=page.locator('.ganttRow[data-task-id="O"] .ganttDueText');await due.fill('2026-08-01');await due.press('Enter');
-  await page.locator('#mPersonal').click();await page.locator('#sDate').click();await page.locator('#b_title').first().fill('Composite new');await page.locator('#b_title').first().press('Enter');await page.locator('#b_due').fill('2026-08-02');await page.locator('#b_due').press('Enter');const id=await page.evaluate(()=>selectedTaskId);await expect(page.locator('#row_'+id)).toHaveClass(/sortAttention/);await page.keyboard.press('Insert');expect(await page.evaluate(id=>({parent:itemById(draftTaskId)?.parentId,draft:!!draftTaskId,ime:imeCompositionTarget,search:searchAttentionTaskId}),id)).toEqual({parent:id,draft:true,ime:null,search:''});
+  await page.evaluate(()=>setMode('personal'));await page.evaluate(()=>setSortMode('date'));await page.locator('#b_title').first().fill('Composite new');await page.locator('#b_title').first().press('Enter');await page.locator('#b_due').fill('2026-08-02');await page.locator('#b_due').press('Enter');const id=await page.evaluate(()=>selectedTaskId);await expect(page.locator('#row_'+id)).toHaveClass(/sortAttention/);await page.keyboard.press('Insert');expect(await page.evaluate(id=>({parent:itemById(draftTaskId)?.parentId,draft:!!draftTaskId,ime:imeCompositionTarget,search:searchAttentionTaskId}),id)).toEqual({parent:id,draft:true,ime:null,search:''});
 });

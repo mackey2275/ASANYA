@@ -80,8 +80,8 @@ test('PBL2-DND-07 persisted sort order keeps Schema, hierarchy, and workspace in
 
 test('PBL2-DND-08 vertical auto-scroll stops after cancellation and does not change horizontal Gantt scroll',async({page})=>{
   await page.setViewportSize({width:1100,height:520});const items=Array.from({length:45},(_,i)=>task('T'+i,{sortOrder:(i+1)*1000}));await boot(page,items,'team','gantt');
-  const handle=row(page,'T0').locator('.siblingDragHandle'),box=await handle.boundingBox(),before=await page.evaluate(()=>({page:scrollY,list:document.getElementById('ganttView').scrollTop,x:ganttTimelineScrollLeft}));
-  await page.mouse.move(box.x+5,box.y+5);await page.mouse.down();await page.mouse.move(box.x+5,510,{steps:5});await page.waitForTimeout(250);await page.keyboard.press('Escape');await page.mouse.up();
+  const handle=row(page,'T0').locator('.siblingDragHandle');await handle.evaluate(el=>el.scrollIntoView({block:'center'}));const box=await handle.boundingBox(),before=await page.evaluate(()=>({page:scrollY,list:document.getElementById('ganttView').scrollTop,x:ganttTimelineScrollLeft}));
+  const bottom=await page.evaluate(()=>innerHeight-2);await page.mouse.move(box.x+5,box.y+5);await page.mouse.down();await page.mouse.move(box.x+5,box.y+20,{steps:2});await page.mouse.move(box.x+5,bottom,{steps:5});await page.waitForTimeout(250);await page.keyboard.press('Escape');await page.mouse.up();
   const stopped=await page.evaluate(()=>({page:scrollY,list:document.getElementById('ganttView').scrollTop,x:ganttTimelineScrollLeft,raf:siblingDragAutoFrame}));await page.waitForTimeout(120);
   expect(stopped.page+stopped.list).toBeGreaterThan(before.page+before.list);expect(stopped.x).toBe(before.x);expect(stopped.raf).toBe(0);expect(await page.evaluate(()=>scrollY+document.getElementById('ganttView').scrollTop)).toBe(stopped.page+stopped.list);
 });
