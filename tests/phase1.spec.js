@@ -2,8 +2,8 @@ const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
 const {APP:app}=require('./helpers/app-target');
-const isV250=(app.includes('v250')||app.includes('v260')||app.includes('v270')),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=isV250?'2.5':isV220?'2.2':'2.0';
-const expectedProduct=app.includes('v270')?'ASANYA v2.7.0':app.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const isV300=app.includes('v300')||app.includes('pbl022')||app.includes('pbl018'),isV250=(app.includes('v250')||app.includes('v260')||app.includes('v270')||app.includes('v300')),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=isV300?'3.0':isV250?'2.5':isV220?'2.2':'2.0';
+const expectedProduct=app.includes('v300')?'ASANYA v3.0.0':app.includes('v270')?'ASANYA v2.7.0':app.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {

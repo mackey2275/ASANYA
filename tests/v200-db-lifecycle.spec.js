@@ -1,10 +1,10 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
-const isV250=(APP.includes('v250')||APP.includes('v260'));
-const EMPTY_DB=isV250?{schema_version:'2.5',workspace_info_markdown:'',items:[]}:APP.includes('v220_dev')||APP.includes('pbl002_')||APP.includes('v230')||APP.includes('v240')||APP.includes('task_detail_phase')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]};
+const isV300=APP.includes('pbl022'),isV250=(APP.includes('v250')||APP.includes('v260')||APP.includes('v270'));
+const EMPTY_DB=isV300?{schema_version:'3.0',workspace_info_markdown:'',items:[]}:isV250?{schema_version:'2.5',workspace_info_markdown:'',items:[]}:APP.includes('v220_dev')||APP.includes('pbl002_')||APP.includes('v230')||APP.includes('v240')||APP.includes('task_detail_phase')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]};
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',...(isV250?{impact_level:0}:{impact:''}),title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
-const json=items=>JSON.stringify({schema_version:isV250?'2.5':'1.8',...(isV250?{workspace_info_markdown:''}:{}),items});
+const json=items=>JSON.stringify({schema_version:isV300?'3.0':isV250?'2.5':'1.8',...(isV250?{workspace_info_markdown:''}:{}),items});
 async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload();await expect(page.locator('#dbStartScreen')).toBeVisible()}
 async function file(page,id,options={}){await page.evaluate(({id,options})=>__fsMock.create(id,options),{id,options})}
 async function directory(page,id,options={}){await page.evaluate(({id,options})=>{__fsMock.createDirectory(id,options);__fsMock.queueDirectory(id)},{id,options})}

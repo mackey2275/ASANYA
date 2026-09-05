@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
-const isV250=(APP.includes('v250')||APP.includes('v260')||APP.includes('v270'));
-const expectedProduct=APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':APP.includes('v240')?'ASANYA v2.4.0':APP.includes('v230')||APP.includes('task_detail_phase')?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':'ASANYA v2.2.0';
+const isV250=(APP.includes('v250')||APP.includes('v260')||APP.includes('v270')||APP.includes('v300'));
+const expectedProduct=APP.includes('v300')?'ASANYA v3.0.0':APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':APP.includes('v240')?'ASANYA v2.4.0':APP.includes('v230')||APP.includes('task_detail_phase')?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':'ASANYA v2.2.0';
 
 const task=(id='T1')=>({id,parentId:'',state:'未着手',impact:'',title:id,owner:'',due:'',planned_duration_days:null,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000});
 async function boot(page,markdown='',schema='2.2'){
@@ -12,7 +12,8 @@ const panel=page=>page.locator('#workspaceInfoPanel');
 
 test('INFO-DATA-01: Schema 2.0 missing field loads as empty and canonical save uses current Schema',async({page})=>{
   await boot(page,null,'2.0');await expect(panel(page).locator('.workspaceInfoDisplay')).toHaveClass(/empty/);
-  expect(await page.evaluate(()=>persistableData())).toMatchObject({schema_version:isV250?'2.5':'2.2',workspace_info_markdown:'',items:[{id:'T1'}]});
+  const currentSchema=await page.evaluate(()=>CURRENT_SCHEMA_VERSION);
+  expect(await page.evaluate(()=>persistableData())).toMatchObject({schema_version:currentSchema,workspace_info_markdown:'',items:[{id:'T1'}]});
 });
 
 test('INFO-EDIT-01: click, Enter newline, Ctrl+Enter commit and blur is one logical commit',async({page})=>{
@@ -43,7 +44,7 @@ test('INFO-LAYOUT-01: desktop stretches to left header, no expand control, long 
 });
 
 test('INFO-HEADER-01: product appears once, schema is beside title, normal DB status is compact plain text',async({page})=>{
-  await page.setViewportSize({width:1440,height:800});await boot(page,'情報');await expect(page.locator('h1')).toContainText(expectedProduct);await expect(page.locator('h1 .schemaMeta')).toHaveText(`schema_version ${isV250?'2.5':'2.2'}`);await expect(page.getByText(expectedProduct,{exact:true})).toHaveCount(1);await expect(page.locator('.info')).toHaveCount(0);await page.evaluate(()=>updateJsonStatus('前回DBを自動再開しました: taskdb.json'));const status=page.locator('#jsonStatus');await expect(status).toContainText('前回DBを自動再開しました');expect(await status.evaluate(el=>{const s=getComputedStyle(el);return{border:s.borderStyle,background:s.backgroundColor,padTop:parseFloat(s.paddingTop),padBottom:parseFloat(s.paddingBottom),marginTop:parseFloat(s.marginTop),marginBottom:parseFloat(s.marginBottom),height:el.getBoundingClientRect().height}})).toMatchObject({border:'none',background:'rgba(0, 0, 0, 0)',padTop:0,padBottom:0,marginTop:3,marginBottom:6});expect(await status.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThan(24);await page.evaluate(()=>updateJsonStatus('JSON読込エラー: broken'));await expect(status).toHaveClass(/statusError/);
+  await page.setViewportSize({width:1440,height:800});await boot(page,'情報');await expect(page.locator('h1')).toContainText(expectedProduct);const currentSchema=await page.evaluate(()=>CURRENT_SCHEMA_VERSION);await expect(page.locator('h1 .schemaMeta')).toHaveText(`schema_version ${currentSchema}`);await expect(page.getByText(expectedProduct,{exact:true})).toHaveCount(1);await expect(page.locator('.info')).toHaveCount(0);await page.evaluate(()=>updateJsonStatus('前回DBを自動再開しました: taskdb.json'));const status=page.locator('#jsonStatus');await expect(status).toContainText('前回DBを自動再開しました');expect(await status.evaluate(el=>{const s=getComputedStyle(el);return{border:s.borderStyle,background:s.backgroundColor,padTop:parseFloat(s.paddingTop),padBottom:parseFloat(s.paddingBottom),marginTop:parseFloat(s.marginTop),marginBottom:parseFloat(s.marginBottom),height:el.getBoundingClientRect().height}})).toMatchObject({border:'none',background:'rgba(0, 0, 0, 0)',padTop:0,padBottom:0,marginTop:3,marginBottom:6});expect(await status.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThan(24);await page.evaluate(()=>updateJsonStatus('JSON読込エラー: broken'));await expect(status).toHaveClass(/statusError/);
 });
 
 test('INFO-LAYOUT-02: second wide viewport aligns and editor fills the panel',async({page})=>{

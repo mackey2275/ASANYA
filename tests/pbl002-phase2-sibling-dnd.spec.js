@@ -75,7 +75,7 @@ test('PBL2-DND-06 Project effective-start scope and List/Gantt shared order',asy
 test('PBL2-DND-07 persisted sort order keeps Schema, hierarchy, and workspace information',async({page})=>{
   await boot(page,[task('P'),task('A',{parentId:'P',sortOrder:1000}),task('B',{parentId:'P',sortOrder:2000})]);await dragAfter(page,'A','B');
   const json=await page.evaluate(()=>persistableData());await page.evaluate(json=>applyJsonObject(json,'Reload','reload.json',null,{remember:false,writePermissionGranted:false}),json);
-  expect(await page.evaluate(()=>({schema:data.schema_version,current:CURRENT_SCHEMA_VERSION,workspace:data.workspace_info_markdown,parentA:itemById('A').parentId,parentB:itemById('B').parentId,order:moveGroup(data.items.indexOf(itemById('A'))).map(p=>p.x.id)}))).toEqual({schema:'2.5',current:'2.5',workspace:'Phase 2 workspace',parentA:'P',parentB:'P',order:['B','A']});
+  expect(await page.evaluate(()=>({schema:data.schema_version,current:CURRENT_SCHEMA_VERSION,workspace:data.workspace_info_markdown,parentA:itemById('A').parentId,parentB:itemById('B').parentId,order:moveGroup(data.items.indexOf(itemById('A'))).map(p=>p.x.id)}))).toEqual({schema:'3.0',current:'3.0',workspace:'Phase 2 workspace',parentA:'P',parentB:'P',order:['B','A']});
 });
 
 test('PBL2-DND-08 vertical auto-scroll stops after cancellation and does not change horizontal Gantt scroll',async({page})=>{
@@ -88,17 +88,17 @@ test('PBL2-DND-08 vertical auto-scroll stops after cancellation and does not cha
 
 test('PBL3-UI-01 ▲▼ column is gone while title handle remains and ToDo geometry aligns',async({page})=>{
   await page.setViewportSize({width:760,height:600});await boot(page,[task('A',{sortOrder:1000}),task('B',{sortOrder:2000})]);
-  expect(await page.evaluate(()=>cols())).toEqual(['done','child','impact','title','repeat','due','summary']);
+  expect(await page.evaluate(()=>cols())).toEqual(['done','impact','title','repeat','due','summary']);
   await expect(page.locator('[data-c="move"],.moveBtns,.moveBtn')).toHaveCount(0);await expect(row(page,'A').locator('.siblingDragHandle')).toBeVisible();
   const geometry=await page.evaluate(()=>({heads:document.querySelectorAll('#head th').length,cells:document.querySelectorAll('#row_A>td').length,cols:document.querySelectorAll('#cols col').length,titleIndex:[...document.querySelectorAll('#head th')].findIndex(x=>x.dataset.c==='title'),handleInTitle:!!document.querySelector('#row_A td.title .titleWrap>.siblingDragHandle')}));
-  expect(geometry).toEqual({heads:7,cells:7,cols:7,titleIndex:3,handleInTitle:true});
+  expect(geometry).toEqual({heads:6,cells:6,cols:6,titleIndex:2,handleInTitle:true});
 });
 
 test('PBL3-UI-02 Project header, draft, rows and timeline align without an ordering column',async({page})=>{
   await page.setViewportSize({width:820,height:620});await boot(page,[task('A',{sortOrder:1000}),task('B',{sortOrder:2000})],'team','gantt');
-  expect(await page.evaluate(()=>cols())).toEqual(['done','child','impact','state','title','owner','planned','repeat','due','summary']);await expect(page.locator('#ganttView [data-c="move"],#ganttView .moveBtn')).toHaveCount(0);
+  expect(await page.evaluate(()=>cols())).toEqual(['done','impact','state','title','owner','planned','repeat','due','summary']);await expect(page.locator('#ganttView [data-c="move"],#ganttView .moveBtn')).toHaveCount(0);
   const aligned=await page.evaluate(()=>{const head=document.querySelector('.ganttHeader .projectInfoTable'),draft=document.querySelector('.projectTopDraftRow .projectInfoTable'),task=document.querySelector('.ganttRow[data-task-id="A"] .projectInfoTable'),clip=document.querySelector('.ganttHeader .ganttTimelineClip'),h=head.getBoundingClientRect(),d=draft.getBoundingClientRect(),r=task.getBoundingClientRect(),c=clip.getBoundingClientRect();return{widths:[h.width,d.width,r.width],gap:c.left-h.right,headCells:head.querySelectorAll('th').length,rowCells:task.querySelectorAll('td').length,handle:!!task.querySelector('.ganttTaskName .siblingDragHandle')}});
-  expect(Math.max(...aligned.widths)-Math.min(...aligned.widths)).toBeLessThan(1);expect(Math.abs(aligned.gap)).toBeLessThan(1);expect(aligned).toMatchObject({headCells:10,rowCells:10,handle:true});
+  expect(Math.max(...aligned.widths)-Math.min(...aligned.widths)).toBeLessThan(1);expect(Math.abs(aligned.gap)).toBeLessThan(1);expect(aligned).toMatchObject({headCells:9,rowCells:9,handle:true});
 });
 
 async function createDraftDue(page){await page.evaluate(()=>{selectedTaskId='BASE';startDraftTask('sibling');commitDraftTitle(draftTaskId,'NEW')});return page.locator('.draftRow input[type="text"]:visible').last()}

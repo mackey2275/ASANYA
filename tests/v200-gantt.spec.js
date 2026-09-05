@@ -2,9 +2,9 @@ const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
-const isV250=(app.includes('v250')||app.includes('v260'));
+const isV250=(app.includes('v250')||app.includes('v260')||app.includes('v270'));
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
-const json=(items,schema=isV250?'2.5':'1.8')=>JSON.stringify({schema_version:schema,...(schema==='2.5'?{workspace_info_markdown:''}:{}),items});
+const json=(items,schema=app.includes('pbl022')?'3.0':isV250?'2.5':'1.8')=>JSON.stringify({schema_version:schema,...((schema==='2.5'||schema==='3.0')?{workspace_info_markdown:''}:{}),items});
 
 async function boot(page){await installFsAccessMock(page);await page.goto(app);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload();await page.evaluate(()=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[]},'Playwright','gantt.json',null,{remember:false,writePermissionGranted:false}))}
 async function setData(page,items,schema){await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema||CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items},'Playwright','gantt.json',null,{remember:false,writePermissionGranted:false}),{items,schema})}
@@ -65,7 +65,7 @@ test('GANTT-UX-01: Project列境界、切替位置、ガント時のショート
 
 test('GANTT-LAYOUT-02: 新規入力の列境界・Project列順・フォント継承',async({page})=>{
   await setData(page,[task('row','既存行',{owner:'担当者',planned_duration_days:3,repeat:'毎週',due:'2026-08-20'})]);await project(page);
-  const columnStart=isV250?5:4;expect(await page.locator('.ganttHeader th').evaluateAll((nodes,start)=>nodes.map(x=>x.dataset.c).slice(start,start+4),columnStart)).toEqual(['owner','planned','repeat','due']);
+  const columnStart=app.includes('pbl021')?4:isV250?5:4;expect(await page.locator('.ganttHeader th').evaluateAll((nodes,start)=>nodes.map(x=>x.dataset.c).slice(start,start+4),columnStart)).toEqual(['owner','planned','repeat','due']);
   expect(await page.evaluate(start=>cols().slice(start,start+4),columnStart)).toEqual(['owner','planned','repeat','due']);
   const cells=await page.locator('#row_row td').evaluateAll((nodes,start)=>nodes.slice(start,start+4).map(x=>({owner:!!x.querySelector('.ownerInput'),planned:!!x.querySelector('.plannedDays'),due:!!x.querySelector('.dueTxt'),repeat:!!x.querySelector('.repeatSel')})),columnStart);expect(cells).toEqual([{owner:true,planned:false,due:false,repeat:false},{owner:false,planned:true,due:false,repeat:false},{owner:false,planned:false,due:false,repeat:true},{owner:false,planned:false,due:true,repeat:false}]);
   const blankCells=await page.locator('#blank td').evaluateAll((nodes,start)=>nodes.slice(start,start+4).map(x=>x.querySelector('input,select')?.id||''),columnStart);expect(blankCells).toEqual(['b_owner','b_planned','b_repeat','b_due']);
@@ -82,7 +82,7 @@ test('GANTT-META-01: 担当・完了予定・期限超過・論理完了表示',
 
 test('GANTT-PLAN-COL-01: 計画日数列の順序と通常・0日・未設定表示',async({page})=>{
   await showGanttData(page,[task('normal','通常',{planned_duration_days:5,due:'2026-08-14',owner:'山田'}),task('mile','節目',{planned_duration_days:0,due:'2026-08-15',owner:'田中'}),task('none','未設定',{owner:'佐藤'})]);
-  const priorityFollowup=app.includes('priority_width_followup')||app.includes('pbl024_025')||app.includes('v260'),impactLabel=priorityFollowup?'優先度':'影響度',closeLabel=app.includes('v260')?'終了':'完了';expect((await page.locator('.ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim()).slice(0,isV250?9:8)).toEqual(isV250?[closeLabel,'子',impactLabel,'ステータス','タイトル','担当','計画日数','繰返し','期限']:['完了','子','ステータス','タイトル','担当','計画日数','繰返し','期限']);await expect(page.locator('.ganttRow[data-task-id="normal"] .ganttPlanned input')).toHaveValue('5');await expect(page.locator('.ganttRow[data-task-id="mile"] .ganttPlanned input')).toHaveValue('0');await expect(page.locator('.ganttRow[data-task-id="none"] .ganttPlanned input')).toHaveValue('');
+  const priorityFollowup=app.includes('priority_width_followup')||app.includes('pbl024_025')||app.includes('v260')||app.includes('v270'),impactLabel=priorityFollowup?'優先度':'影響度',closeLabel=(app.includes('v260')||app.includes('v270'))?'終了':'完了',pbl021=app.includes('pbl021');const actual=(await page.locator('.ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim());expect(actual.slice(0,pbl021?8:isV250?9:8)).toEqual(pbl021?[closeLabel,impactLabel,'ステータス','タイトル','担当','計画日数','繰返し','期限']:isV250?[closeLabel,'子',impactLabel,'ステータス','タイトル','担当','計画日数','繰返し','期限']:['完了','子','ステータス','タイトル','担当','計画日数','繰返し','期限']);await expect(page.locator('.ganttRow[data-task-id="normal"] .ganttPlanned input')).toHaveValue('5');await expect(page.locator('.ganttRow[data-task-id="mile"] .ganttPlanned input')).toHaveValue('0');await expect(page.locator('.ganttRow[data-task-id="none"] .ganttPlanned input')).toHaveValue('');
 });
 
 test('GANTT-DRAG-BASIC-01: 実mouse操作の全体移動・左右resize・最小期間・マイルストーン・閾値',async({page})=>{

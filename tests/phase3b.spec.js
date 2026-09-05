@@ -3,7 +3,8 @@ const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
-const json=items=>JSON.stringify({schema_version:(app.includes('v250')||app.includes('v260'))?'2.5':'1.5',...((app.includes('v250')||app.includes('v260'))?{workspace_info_markdown:''}:{}),items});
+const currentSchema=app.includes('pbl022')||app.includes('pbl018')?'3.0':(app.includes('v250')||app.includes('v260')||app.includes('v270'))?'2.5':'1.5';
+const json=items=>JSON.stringify({schema_version:currentSchema,...(currentSchema!=='1.5'?{workspace_info_markdown:''}:{}),items});
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(app);
@@ -53,8 +54,8 @@ test('INPUT-03: 最上段タイトルから空期限Enterで確定',async({page}
   expect(await page.evaluate(()=>data.items.map(x=>({title:x.title,due:x.due})))).toEqual([{title:'期限なし新規',due:''}]);
 });
 
-test('INPUT-07: ＋子はInsertと同じ子ドラフトを生成',async({page})=>{
-  await setData(page,[task('A','親A'),task('B','B',{sortOrder:2000})]);await page.locator('#row_A .childBtn').click();
+test('INPUT-07: 追加メニューの子操作はInsertと同じ子ドラフトを生成',async({page})=>{
+  await setData(page,[task('A','親A'),task('B','B',{sortOrder:2000})]);await page.locator('#row_A .taskAddBtn').click();await page.getByRole('menuitem',{name:'1つ下の階層に追加'}).click();
   const result=await page.evaluate(()=>({draftTaskId,parentId:itemById(draftTaskId).parentId,kind:draftKind,rows:[...document.querySelectorAll('#body tr:not(.blank)')].map(x=>x.id)}));
   expect(result.parentId).toBe('A');expect(result.kind).toBe('child');expect(result.rows).toEqual(['row_A',`row_${result.draftTaskId}`,'row_B']);
 });

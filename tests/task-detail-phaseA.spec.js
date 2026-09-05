@@ -20,10 +20,10 @@ test('DETAIL-A-01 explicit open/close and selected-task follow stay independent'
 
 test('DETAIL-A-02 row control order and existing child/title/DnD interactions',async({page})=>{
   await boot(page,[task('A'),task('B',{sortOrder:2000})]);const a=row(page,'A');
-  expect(await a.evaluate(el=>{const child=el.querySelector('.childBtn'),handle=el.querySelector('.siblingDragHandle'),detail=el.querySelector('.taskDetailOpenBtn'),title=el.querySelector('.titleText');return{childBeforeHandle:child.getBoundingClientRect().left<handle.getBoundingClientRect().left,handleBeforeDetail:handle.compareDocumentPosition(detail)&Node.DOCUMENT_POSITION_FOLLOWING?true:false,detailBeforeTitle:detail.compareDocumentPosition(title)&Node.DOCUMENT_POSITION_FOLLOWING?true:false}})).toEqual({childBeforeHandle:true,handleBeforeDetail:true,detailBeforeTitle:true});
+  expect(await a.evaluate(el=>{const add=el.querySelector('.taskAddBtn'),handle=el.querySelector('.siblingDragHandle'),detail=el.querySelector('.taskDetailOpenBtn'),title=el.querySelector('.titleText');return{handleBeforeAdd:handle.compareDocumentPosition(add)&Node.DOCUMENT_POSITION_FOLLOWING?true:false,addBeforeDetail:add.compareDocumentPosition(detail)&Node.DOCUMENT_POSITION_FOLLOWING?true:false,detailBeforeTitle:detail.compareDocumentPosition(title)&Node.DOCUMENT_POSITION_FOLLOWING?true:false}})).toEqual({handleBeforeAdd:true,addBeforeDetail:true,detailBeforeTitle:true});
   await a.locator('.taskDetailOpenBtn').dispatchEvent('pointerdown',{button:0,pointerId:7,clientX:10,clientY:10});expect(await page.evaluate(()=>!!siblingDragState)).toBe(false);
   await a.locator('.titleText').click();await expect(a.locator('.titleText')).toBeFocused();await page.evaluate(()=>document.activeElement.blur());
-  await a.locator('.childBtn').click();expect(await page.evaluate(()=>({kind:draftKind,parent:itemById(draftTaskId)?.parentId}))).toEqual({kind:'child',parent:'A'});await page.keyboard.press('Escape');
+  await a.locator('.taskAddBtn').click();await page.getByRole('menuitem',{name:'1つ下の階層に追加'}).click();expect(await page.evaluate(()=>({kind:draftKind,parent:itemById(draftTaskId)?.parentId}))).toEqual({kind:'child',parent:'A'});await page.keyboard.press('Escape');
   await a.locator('.siblingDragHandle').dispatchEvent('pointerdown',{button:0,pointerId:8,clientX:10,clientY:10});expect(await page.evaluate(()=>!!siblingDragState)).toBe(true);await page.keyboard.press('Escape');
 });
 
@@ -36,7 +36,7 @@ test('DETAIL-A-03 hierarchy and dependency content uses current relationships wi
 
 test('DETAIL-A-04 draft preserves persisted detail; mode and lifecycle remain safe',async({page})=>{
   await boot(page,[task('A'),task('B',{sortOrder:2000})]);await row(page,'A').locator('.taskDetailOpenBtn').click();
-  await row(page,'A').locator('.childBtn').click();await expect(pane(page).getByLabel('タイトル')).toHaveValue('A');
+  await row(page,'A').locator('.taskAddBtn').click();await page.getByRole('menuitem',{name:'1つ下の階層に追加'}).click();await expect(pane(page).getByLabel('タイトル')).toHaveValue('A');
   await page.keyboard.press('Escape');await page.evaluate(()=>setMode('team'));await expect(pane(page).getByLabel('タイトル')).toHaveValue('A');await page.evaluate(()=>setMode('personal'));await expect(pane(page).getByLabel('タイトル')).toHaveValue('A');
   await page.evaluate(()=>{data.items=data.items.filter(x=>x.id!=='A');render()});await expect(pane(page)).toContainText('タスクを選択してください');
   await page.evaluate(()=>applyJsonObject({schema_version:'2.2',items:[{id:'NEW',parentId:'',title:'New DB',state:'',owner:'',due:'',planned_duration_days:null,summary:'',repeat:'',completed:false,dependencies:[],sortOrder:1000}]},'Other','other.json',null,{remember:false,writePermissionGranted:false}));await expect(pane(page)).toBeVisible();await expect(pane(page)).toContainText('タスクを選択してください');

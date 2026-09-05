@@ -1,9 +1,9 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
-const isV250=(APP.includes('v250')||APP.includes('v260'));
+const isV300=APP.includes('v300')||APP.includes('pbl022')||APP.includes('pbl018'),isV250=(APP.includes('v250')||APP.includes('v260')||APP.includes('v270')||APP.includes('v300'));
 const task=id=>({id,parentId:'',state:'',impact:'',title:id,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000});
-const json=(items,schema=isV250?'2.5':'1.8')=>JSON.stringify({schema_version:schema,...(schema==='2.5'?{workspace_info_markdown:''}:{}),items});
+const json=(items,schema=isV300?'3.0':isV250?'2.5':'1.8')=>JSON.stringify({schema_version:schema,...(schema==='3.0'||schema==='2.5'?{workspace_info_markdown:''}:{}),items});
 async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload()}
 async function file(page,id,options){await page.evaluate(({id,options})=>__fsMock.create(id,options),{id,options})}
 async function restore(page,id,name,handle=true){await page.evaluate(({id,name,handle})=>{const h=handle?__fsMock.handle(id):null;getLastDbRecord=async()=>({name,handle:h});window.__startup=restoreLastDbOnStartup()},{id,name,handle});await page.evaluate(()=>window.__startup)}

@@ -2,9 +2,9 @@ const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
-const isV250=(app.includes('v250')||app.includes('v260'));
+const isV300=app.includes('v300')||app.includes('pbl022')||app.includes('pbl018'),isV250=(app.includes('v250')||app.includes('v260')||app.includes('v270')||app.includes('v300'));
 const task=(id,title=id)=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[]});
-const json=items=>JSON.stringify({schema_version:isV250?'2.5':'1.5',...(isV250?{workspace_info_markdown:''}:{}),items});
+const json=items=>JSON.stringify({schema_version:isV300?'3.0':isV250?'2.5':'1.5',...(isV300||isV250?{workspace_info_markdown:''}:{}),items});
 
 async function boot(page){
   await installFsAccessMock(page);
@@ -52,7 +52,7 @@ test('v2 Access 新しいDB: CancelはA不変、成功時だけ空Bへ直接移�
   const sourceBefore=await page.evaluate(()=>__fsMock.snapshot('source').text);await page.locator('#newDbBtn').click();await page.locator('#newDbNameCancel').click();
   expect(await page.evaluate(()=>({loaded:dbDataLoaded,name:currentDbName,ids:data.items.map(x=>x.id)}))).toEqual({loaded:true,name:'source.json',ids:['source-task']});expect(await page.evaluate(()=>__fsMock.snapshot('source').text)).toBe(sourceBefore);
   await makeDirectory(page,'new-dir');await page.locator('#newDbBtn').click();await page.locator('#newDbNameInput').fill('new-db');await page.locator('#newDbNameNext').click();await page.locator('#newDbFolderNext').click();await expect.poll(()=>page.evaluate(()=>currentDbName)).toBe('new-db.json');const newId=await page.evaluate(()=>__fsMock.directoryEntries('new-dir')[0][1]);
-expect(await page.evaluate(id=>JSON.parse(__fsMock.snapshot(id).text),newId)).toEqual(isV250?{schema_version:'2.5',workspace_info_markdown:'',items:[]}:app.includes('v220_dev')||app.includes('pbl002_')||app.includes('v230')||app.includes('v240')||app.includes('task_detail_phase')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]});await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbSaveBtn')).toHaveText('現在DBのコピーを保存');await expect(page.locator('#newDbBtn')).toBeVisible();
+expect(await page.evaluate(id=>JSON.parse(__fsMock.snapshot(id).text),newId)).toEqual(isV300?{schema_version:'3.0',workspace_info_markdown:'',items:[]}:isV250?{schema_version:'2.5',workspace_info_markdown:'',items:[]}:app.includes('v220_dev')||app.includes('pbl002_')||app.includes('v230')||app.includes('v240')||app.includes('task_detail_phase')?{schema_version:'2.2',workspace_info_markdown:'',items:[]}:{schema_version:'2.0',items:[]});await expect(page.locator('#dbReadBtn')).toHaveText('別DB読込');await expect(page.locator('#dbSaveBtn')).toHaveText('現在DBのコピーを保存');await expect(page.locator('#newDbBtn')).toBeVisible();
 });
 
 test('v1.5.7 新しいDB: 未保存変更の保存失敗時は現在DBを維持',async({page})=>{

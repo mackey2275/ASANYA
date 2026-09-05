@@ -117,7 +117,7 @@ test('PBL025-01 completed Project summary stays gray without strike-through whil
 test('PBL017-PROTECTION defaults and visible headers remain 56 / 424 and 優先度',async({page})=>{
   await boot(page,[task('A','Geometry')]);
   const values=await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,todo:[DEF.impact,DEF.title],project:[PROJECT_COL_DEFAULTS.impact,PROJECT_COL_DEFAULTS.title,PROJECT_COL_MINS.impact]}));
-  expect(values).toEqual({schema:'2.5',todo:[56,424],project:[56,424,56]});
+  expect(values).toEqual({schema:'3.0',todo:[56,424],project:[56,424,56]});
   const headers=(await page.locator('.ganttHeader th').allTextContents()).map(x=>x.trim());
   expect(headers).toContain('優先度');expect(headers).not.toContain('影響度');
 });

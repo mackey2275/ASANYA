@@ -23,7 +23,7 @@ test('PBL1-02 child/root/grandchildの各方向をSchema変更なしで移動',a
   expect((await page.evaluate(()=>reassignTaskParent('C',''))).ok).toBe(true); // child -> root
   expect(await page.evaluate(()=>itemById('C').parentId)).toBe('');
   expect((await page.evaluate(()=>reassignTaskParent('A','C'))).ok).toBe(true); // root -> child
-  expect(await page.evaluate(()=>({parent:itemById('A').parentId,schema:data.schema_version}))).toEqual({parent:'C',schema:'2.5'});
+  expect(await page.evaluate(()=>({parent:itemById('A').parentId,schema:data.schema_version}))).toEqual({parent:'C',schema:'3.0'});
 });
 
 test('PBL1-03 self・descendant・不存在・関連cycleをmutation層で安全に拒否',async({page})=>{
@@ -69,7 +69,7 @@ test('PBL1-08 explicit confirmationは1回commitしUndo/Redoでparent/orderを�
 
 test('PBL1-09 保存・再読込でparent/order/subtree/Schema/workspace情報を保持',async({page})=>{
   await boot(page,[task('A'),task('B',{parentId:'A'}),task('C',{parentId:'B'}),task('D')],'personal','# 重要情報');await page.evaluate(()=>reassignTaskParent('B','D'));const json=await page.evaluate(()=>JSON.stringify(persistableData()));await page.evaluate(json=>applyJsonObject(JSON.parse(json),'reload','pbl.json',null,{remember:false,writePermissionGranted:false}),json);
-  expect(await page.evaluate(()=>({schema:data.schema_version,workspace:data.workspace_info_markdown,parent:itemById('B').parentId,order:itemById('B').sortOrder,child:itemById('C').parentId}))).toEqual({schema:'2.5',workspace:'# 重要情報',parent:'D',order:1000,child:'B'});
+  expect(await page.evaluate(()=>({schema:data.schema_version,workspace:data.workspace_info_markdown,parent:itemById('B').parentId,order:itemById('B').sortOrder,child:itemById('C').parentId}))).toEqual({schema:'3.0',workspace:'# 重要情報',parent:'D',order:1000,child:'B'});
 });
 
 test('PBL1-10 ToDo/Project List/Ganttで共通階層を反映し水平scrollを維持',async({page})=>{

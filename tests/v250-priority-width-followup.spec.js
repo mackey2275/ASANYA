@@ -21,13 +21,13 @@ test('PBL017-FOLLOWUP-01 approved defaults, minimum, header, and model stay exac
     project:{impact:PROJECT_COL_DEFAULTS.impact,title:PROJECT_COL_DEFAULTS.title,minImpact:PROJECT_COL_MINS.impact},
     field:Object.prototype.hasOwnProperty.call(itemById('A'),'impact_level'),
     legacy:Object.prototype.hasOwnProperty.call(itemById('A'),'impact')
-  }))).toEqual({schema:'2.5',todo:{impact:56,title:424},project:{impact:56,title:424,minImpact:56},field:true,legacy:false});
+  }))).toEqual({schema:'3.0',todo:{impact:56,title:424},project:{impact:56,title:424,minImpact:56},field:true,legacy:false});
 
   let labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());
   expect(labels).toContain('優先度');expect(labels).not.toContain('影響度');
   await page.evaluate(()=>setMode('team'));
   labels=(await page.locator('#ganttView .ganttHeader th').allTextContents()).map(x=>x.trim());
-  expect(labels.slice(labels.indexOf('子'),labels.indexOf('ステータス')+1)).toEqual(['子','優先度','ステータス']);
+  expect(labels.slice(labels.indexOf('優先度'),labels.indexOf('ステータス')+1)).toEqual(['優先度','ステータス']);
   await page.locator('.ganttRow[data-task-id="A"] .taskDetailOpenBtn').click();
   await expect(page.locator('#taskDetailPane')).toContainText('影響度');
 });

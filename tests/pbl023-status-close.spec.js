@@ -102,7 +102,7 @@ test('PBL023-J Task Detail Status completion stays Open and participates in one 
 });
 
 test('PBL023-K PBL-017 geometry and Schema/persistence remain exact',async({page})=>{
-  await boot(page,[task('A')]);expect(await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,todo:[DEF.impact,DEF.title],project:[PROJECT_COL_DEFAULTS.impact,PROJECT_COL_DEFAULTS.title],fields:Object.keys(persistableData().items[0]).filter(k=>['state','completed'].includes(k)).sort()}))).toEqual({schema:'2.5',todo:[56,424],project:[56,424],fields:['completed','state']});
+  await boot(page,[task('A')]);expect(await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,todo:[DEF.impact,DEF.title],project:[PROJECT_COL_DEFAULTS.impact,PROJECT_COL_DEFAULTS.title],fields:Object.keys(persistableData().items[0]).filter(k=>['state','completed'].includes(k)).sort()}))).toEqual({schema:'3.0',todo:[56,424],project:[56,424],fields:['completed','state']});
   const labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());expect(labels).toContain('優先度');expect(labels).toContain('終了');
 });
 

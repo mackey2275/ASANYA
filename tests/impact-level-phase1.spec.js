@@ -1,12 +1,13 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
+const CURRENT_SCHEMA=APP.includes('pbl022')?'3.0':'2.5';
 
 const legacyTask=(id,impact,extra={})=>({id,parentId:'',state:'未着手',impact,title:id,owner:'',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await expect(page).toHaveTitle(APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('2.5');
+  await expect(page).toHaveTitle(APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(CURRENT_SCHEMA);
 }
 async function apply(page,schema,items){
   return page.evaluate(({schema,items})=>applyJsonObject({...((schema===null)?{}:{schema_version:schema}),items},'impact-test','impact.json',null,{remember:false,writePermissionGranted:false}),{schema,items});
@@ -41,12 +42,12 @@ test('IMPACT-MIGRATE-02 tolerant variants and unknown diagnostic behavior',async
 test('IMPACT-SCHEMA25-01 round trip uses impact_level only and normalizes invalid values',async({page})=>{
   await apply(page,'2.5',[{id:'N0',impact_level:0},{id:'N1',impact_level:1},{id:'N2',impact_level:'2'},{id:'N3',impact_level:3},{id:'BAD',impact_level:99,impact:'A'}]);
   expect(await page.evaluate(()=>data.items.map(x=>x.impact_level))).toEqual([0,1,2,3,0]);
-  const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe('2.5');for(const item of saved.items){expect(item).toHaveProperty('impact_level');expect(item).not.toHaveProperty('impact')}
-  expect(await page.evaluate(()=>schemaMigrationPending)).toBe(false);
+  const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe(CURRENT_SCHEMA);for(const item of saved.items){expect(item).toHaveProperty('impact_level');expect(item).not.toHaveProperty('impact')}
+  expect(await page.evaluate(()=>schemaMigrationPending)).toBe(CURRENT_SCHEMA==='3.0');
 });
 
 test('IMPACT-SCHEMA25-02 unsupported gap and future schemas are rejected',async({page})=>{
-  expect(await page.evaluate(()=>['2.3','2.4','2.6','9.0'].map(schema=>{try{prepareSchemaObject({schema_version:schema,items:[]});return'accepted'}catch(e){return e.schemaKind}}))).toEqual(['unsupported-gap','unsupported-gap','newer','newer']);
+  expect(await page.evaluate(()=>['2.3','2.4','2.6','9.0'].map(schema=>{try{prepareSchemaObject({schema_version:schema,items:[]});return'accepted'}catch(e){return e.schemaKind}}))).toEqual(CURRENT_SCHEMA==='3.0'?['unsupported-gap','unsupported-gap','unsupported-gap','newer']:['unsupported-gap','unsupported-gap','newer','newer']);
 });
 
 test('IMPACT-UPGRADE-01 exact old JSON is backed up before primary Schema 2.5 write',async({page})=>{
@@ -54,9 +55,9 @@ test('IMPACT-UPGRADE-01 exact old JSON is backed up before primary Schema 2.5 wr
   await page.evaluate(()=>{chg(0,'title','edited');__fsMock.create('backup',{name:'my.tasks_schema2.2.json',text:''});__fsMock.queueSave('backup')});
   await startSave(page);await acceptUpgrade(page);expect(await finishSave(page)).toBe(true);
   const result=await page.evaluate(()=>({backup:__fsMock.snapshot('backup').text,primary:JSON.parse(__fsMock.snapshot('primary').text),calls:__fsMock.calls(),loadedSchemaVersion,schemaMigrationPending,dirty,currentDbName}));
-  expect(result.backup).toBe(original);expect(result.primary.schema_version).toBe('2.5');expect(result.primary.items[0]).toMatchObject({impact_level:2,title:'edited'});expect(result.primary.items[0]).not.toHaveProperty('impact');
+  expect(result.backup).toBe(original);expect(result.primary.schema_version).toBe(CURRENT_SCHEMA);expect(result.primary.items[0]).toMatchObject({impact_level:2,title:'edited'});expect(result.primary.items[0]).not.toHaveProperty('impact');
   expect(result.calls.find(x=>x.op==='showSaveFilePicker').suggestedName).toBe('my.tasks_schema2.2.json');expect(result.calls.findIndex(x=>x.op==='write'&&x.id==='backup')).toBeLessThan(result.calls.findIndex(x=>x.op==='write'&&x.id==='primary'));
-  expect(result).toMatchObject({loadedSchemaVersion:'2.5',schemaMigrationPending:false,dirty:false,currentDbName:'my.tasks.json'});
+  expect(result).toMatchObject({loadedSchemaVersion:CURRENT_SCHEMA,schemaMigrationPending:false,dirty:false,currentDbName:'my.tasks.json'});
 });
 
 test('IMPACT-UPGRADE-02 schema-less/2.0 backup naming and cancellation preserve primary',async({page})=>{
@@ -94,7 +95,7 @@ test('IMPACT-STAR-03 top-level and child draft commit numeric level only',async(
 });
 
 test('IMPACT-COMPAT-01 recurrence copies level, sorting unchanged, Copilot uses stars',async({page})=>{
-  await apply(page,'2.5',[{id:'R',title:'Repeat',impact_level:2,due:'2026-08-20',repeat:'毎日',completed:false,sortOrder:1000},{id:'B',title:'B',impact_level:3,due:'2026-08-21',sortOrder:2000}]);const before=await page.evaluate(()=>visible().map(x=>x.x.id));await page.evaluate(()=>toggle(data.items.findIndex(x=>x.id==='R')));const rolled=await page.evaluate(()=>itemById('R'));expect(rolled.impact_level).toBe(2);expect(rolled).not.toHaveProperty('impact');expect(rolled.due).toBe('2026-08-21');expect((await page.evaluate(()=>buildCopilotPrompt(itemById('B')))).match(/影響度: ★★★/)).toBeTruthy();expect(before).toEqual(['R','B']);
+  await apply(page,'2.5',[{id:'R',title:'Repeat',impact_level:2,due:'2026-10-20',repeat:'毎日',completed:false,sortOrder:1000},{id:'B',title:'B',impact_level:3,due:'2026-10-21',sortOrder:2000}]);const before=await page.evaluate(()=>visible().map(x=>x.x.id));await page.evaluate(()=>toggle(data.items.findIndex(x=>x.id==='R')));const rolled=await page.evaluate(()=>itemById('R'));expect(rolled.impact_level).toBe(2);expect(rolled).not.toHaveProperty('impact');expect(rolled.due).toBe('2026-10-21');expect((await page.evaluate(()=>buildCopilotPrompt(itemById('B')))).match(/影響度: ★★★/)).toBeTruthy();expect(before).toEqual(['R','B']);
 });
 
 test('IMPACT-COMPAT-02 ASANA import boundary maps legacy values through the common mapper',async({page})=>{
@@ -102,11 +103,11 @@ test('IMPACT-COMPAT-02 ASANA import boundary maps legacy values through the comm
 });
 
 test('IMPACT-DEFER-01 Task Detail remains unchanged and has no Impact editor',async({page})=>{
-  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
+  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.includes('v270')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
 });
 
 test('IMPACT-COPY-01 ordinary copy serializes Schema 2.5 without mutating old primary',async({page})=>{
-  const original=await openMockDb(page,'primary','2.2',[legacyTask('A','A')],{name:'tasks.json'});await page.evaluate(()=>{__fsMock.create('copy',{name:'tasks_copy.json'});__fsMock.queueSave('copy');window.__copyPromise=saveCopyJson()});await acceptUpgrade(page);await page.evaluate(()=>window.__copyPromise);const copy=JSON.parse(await page.evaluate(()=>__fsMock.snapshot('copy').text));expect(copy.schema_version).toBe('2.5');expect(copy.items[0]).toMatchObject({impact_level:3});expect(copy.items[0]).not.toHaveProperty('impact');expect(await page.evaluate(()=>__fsMock.snapshot('primary').text)).toBe(original);
+  const original=await openMockDb(page,'primary','2.2',[legacyTask('A','A')],{name:'tasks.json'});await page.evaluate(()=>{__fsMock.create('copy',{name:'tasks_copy.json'});__fsMock.queueSave('copy');window.__copyPromise=saveCopyJson()});await acceptUpgrade(page);await page.evaluate(()=>window.__copyPromise);const copy=JSON.parse(await page.evaluate(()=>__fsMock.snapshot('copy').text));expect(copy.schema_version).toBe(CURRENT_SCHEMA);expect(copy.items[0]).toMatchObject({impact_level:3});expect(copy.items[0]).not.toHaveProperty('impact');expect(await page.evaluate(()=>__fsMock.snapshot('primary').text)).toBe(original);
 });
 
 test('IMPACT-SWITCH-01 cancelling required legacy upgrade cancels DB switch without writes',async({page})=>{
@@ -114,7 +115,7 @@ test('IMPACT-SWITCH-01 cancelling required legacy upgrade cancels DB switch with
 });
 
 test('IMPACT-NEWDB-01 new database starts directly at Schema 2.5',async({page})=>{
-  await page.evaluate(()=>{__fsMock.createDirectory('dir',{name:'folder'});__fsMock.queueDirectory('dir');window.__newPromise=startNewDb()});await expect(page.locator('#newDbNameInput')).toBeVisible();await page.locator('#newDbNameInput').fill('fresh');await page.locator('#newDbNameNext').click();await page.locator('#newDbFolderNext').click();await page.evaluate(()=>window.__newPromise);const entry=await page.evaluate(()=>__fsMock.directoryEntries('dir')[0]);expect(entry[0]).toBe('fresh.json');expect(JSON.parse((await page.evaluate(id=>__fsMock.snapshot(id).text,entry[1]))).schema_version).toBe('2.5');expect(await page.evaluate(()=>({loadedSchemaVersion,schemaMigrationPending}))).toEqual({loadedSchemaVersion:'2.5',schemaMigrationPending:false});
+  await page.evaluate(()=>{__fsMock.createDirectory('dir',{name:'folder'});__fsMock.queueDirectory('dir');window.__newPromise=startNewDb()});await expect(page.locator('#newDbNameInput')).toBeVisible();await page.locator('#newDbNameInput').fill('fresh');await page.locator('#newDbNameNext').click();await page.locator('#newDbFolderNext').click();await page.evaluate(()=>window.__newPromise);const entry=await page.evaluate(()=>__fsMock.directoryEntries('dir')[0]);expect(entry[0]).toBe('fresh.json');expect(JSON.parse((await page.evaluate(id=>__fsMock.snapshot(id).text,entry[1]))).schema_version).toBe(CURRENT_SCHEMA);expect(await page.evaluate(()=>({loadedSchemaVersion,schemaMigrationPending}))).toEqual({loadedSchemaVersion:CURRENT_SCHEMA,schemaMigrationPending:false});
 });
 
 test('IMPACT-MOVE-01 cancelling destination upgrade leaves both JSON files exact',async({page})=>{
@@ -122,5 +123,5 @@ test('IMPACT-MOVE-01 cancelling destination upgrade leaves both JSON files exact
 });
 
 test('IMPACT-MOVE-02 destination and source legacy backups finish before either primary mutation',async({page})=>{
-  const source=await openMockDb(page,'source','2.2',[legacyTask('S','A')],{name:'source.json'}),target=JSON.stringify({schema_version:'2.2',items:[legacyTask('T','C')]});page.on('dialog',d=>d.accept());await page.evaluate(target=>{selectedTaskId='S';__fsMock.create('target',{name:'target.json',text:target});__fsMock.create('targetBackup',{name:'target_schema2.2.json'});__fsMock.create('sourceBackup',{name:'source_schema2.2.json'});__fsMock.queueOpen('target');__fsMock.queueSave('targetBackup');__fsMock.queueSave('sourceBackup');window.__movePromise=moveSelectedTaskToOtherDb()},target);await acceptUpgrade(page);await acceptUpgrade(page);await page.evaluate(()=>window.__movePromise);const result=await page.evaluate(()=>({sourceBackup:__fsMock.snapshot('sourceBackup').text,targetBackup:__fsMock.snapshot('targetBackup').text,source:JSON.parse(__fsMock.snapshot('source').text),target:JSON.parse(__fsMock.snapshot('target').text),calls:__fsMock.calls()}));expect(result.sourceBackup).toBe(source);expect(result.targetBackup).toBe(target);expect(result.source.schema_version).toBe('2.5');expect(result.source.items).toHaveLength(0);expect(result.target.schema_version).toBe('2.5');expect(result.target.items.find(x=>x.id==='S')).toMatchObject({impact_level:3});const firstPrimary=Math.min(...['source','target'].map(id=>result.calls.findIndex(x=>x.op==='write'&&x.id===id)).filter(x=>x>=0));expect(result.calls.findIndex(x=>x.op==='write'&&x.id==='targetBackup')).toBeLessThan(firstPrimary);expect(result.calls.findIndex(x=>x.op==='write'&&x.id==='sourceBackup')).toBeLessThan(firstPrimary);
+  const source=await openMockDb(page,'source','2.2',[legacyTask('S','A')],{name:'source.json'}),target=JSON.stringify({schema_version:'2.2',items:[legacyTask('T','C')]});page.on('dialog',d=>d.accept());await page.evaluate(target=>{selectedTaskId='S';__fsMock.create('target',{name:'target.json',text:target});__fsMock.create('targetBackup',{name:'target_schema2.2.json'});__fsMock.create('sourceBackup',{name:'source_schema2.2.json'});__fsMock.queueOpen('target');__fsMock.queueSave('targetBackup');__fsMock.queueSave('sourceBackup');window.__movePromise=moveSelectedTaskToOtherDb()},target);await acceptUpgrade(page);await acceptUpgrade(page);await page.evaluate(()=>window.__movePromise);const result=await page.evaluate(()=>({sourceBackup:__fsMock.snapshot('sourceBackup').text,targetBackup:__fsMock.snapshot('targetBackup').text,source:JSON.parse(__fsMock.snapshot('source').text),target:JSON.parse(__fsMock.snapshot('target').text),calls:__fsMock.calls()}));expect(result.sourceBackup).toBe(source);expect(result.targetBackup).toBe(target);expect(result.source.schema_version).toBe(CURRENT_SCHEMA);expect(result.source.items).toHaveLength(0);expect(result.target.schema_version).toBe(CURRENT_SCHEMA);expect(result.target.items.find(x=>x.id==='S')).toMatchObject({impact_level:3});const firstPrimary=Math.min(...['source','target'].map(id=>result.calls.findIndex(x=>x.op==='write'&&x.id===id)).filter(x=>x>=0));expect(result.calls.findIndex(x=>x.op==='write'&&x.id==='targetBackup')).toBeLessThan(firstPrimary);expect(result.calls.findIndex(x=>x.op==='write'&&x.id==='sourceBackup')).toBeLessThan(firstPrimary);
 });

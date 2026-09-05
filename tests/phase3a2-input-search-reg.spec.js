@@ -104,8 +104,8 @@ test('REG-04: 繰返しなし完了では次回タスクを生成しない',asyn
 
 test('REG-05: 繰返しあり完了で同一タスクを次回期限へ繰り越す',async({page})=>{
   await setData(page,[task('weekly','週次',{due:'2026-08-15',repeat:'毎週'})]); await page.locator('#vAll').click(); await page.locator('#row_weekly .doneBtn').click();
-  const result=await page.evaluate(()=>data.items.map(x=>({id:x.id,title:x.title,due:x.due,repeat:x.repeat,completed:x.completed})));
-  expect(result).toEqual([{id:'weekly',title:'週次',due:'2026-08-22',repeat:'毎週',completed:false}]);
+  const {result,expectedDue}=await page.evaluate(()=>{const result=data.items.map(x=>({id:x.id,title:x.title,due:x.due,repeat:x.repeat,completed:x.completed}));let next=new Date('2026-08-15T00:00:00'),today=new Date();today.setHours(0,0,0,0);while(next<today)next.setDate(next.getDate()+7);const pad=value=>String(value).padStart(2,'0'),expectedDue=`${next.getFullYear()}-${pad(next.getMonth()+1)}-${pad(next.getDate())}`;return{result,expectedDue}});
+  expect(result).toEqual([{id:'weekly',title:'週次',due:expectedDue,repeat:'毎週',completed:false}]);
 });
 
 test('REG-06: 期限なし繰返し完了では生成せず通知',async({page})=>{
