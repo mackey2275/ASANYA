@@ -47,7 +47,7 @@ test('PBL021-R09 Project detail/simple keep normal/draft boundaries and horizont
 });
 
 test('PBL021-R10 menu opening is runtime-only',async({page})=>{
-  await boot(page);const before=await page.evaluate(()=>({json:JSON.stringify(persistableData()),dirty,undo:undoStack.length,selected:selectedTaskId}));await page.locator('#row_ROOT .taskAddBtn').click();expect(await page.evaluate(()=>({json:JSON.stringify(persistableData()),dirty,undo:undoStack.length,selected:selectedTaskId}))).toEqual(before);await page.keyboard.press('Escape');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(APP.includes('pbl022')?'3.0':'2.5')
+  await boot(page);const before=await page.evaluate(()=>({json:JSON.stringify(persistableData()),dirty,undo:undoStack.length,selected:selectedTaskId}));await page.locator('#row_ROOT .taskAddBtn').click();expect(await page.evaluate(()=>({json:JSON.stringify(persistableData()),dirty,undo:undoStack.length,selected:selectedTaskId}))).toEqual(before);await page.keyboard.press('Escape');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(APP.includes('pbl034')?'3.1':APP.includes('pbl022')||APP.includes('pbl033')?'3.0':'2.5')
 });
 
 test('PBL021-F01 Project Enter inserts a sibling after a leaf and before the next sibling',async({page})=>{

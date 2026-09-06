@@ -6,7 +6,7 @@ async function setData(page,items){await page.evaluate(items=>applyJsonObject({s
 async function gantt(page){await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
 async function ganttOrder(page){return page.locator('#ganttView .ganttRow[data-task-id]').evaluateAll(rows=>rows.map(r=>r.dataset.taskId))}
 async function listOrder(page){return await page.locator('#ganttView').isVisible()?ganttOrder(page):page.locator('#body tr:not(.blank)').evaluateAll(rows=>rows.map(r=>r.id.slice(4)))}
-async function finishDraft(page,title,due='',duration=null){const input=page.locator('#ganttView .ganttDraftTitle');await expect(input).toBeFocused();await input.fill(title);await input.press('Enter');const dueInput=page.locator('#ganttView .ganttDraftRow .dateEdit input[type="text"]');await expect(dueInput).toBeFocused();if(due)await dueInput.fill(due);await dueInput.press('Enter');const planned=page.locator('#ganttView .ganttDraftRow .ganttPlanned input');await expect(planned).toBeFocused();if(duration!==null)await planned.fill(String(duration));await planned.press('Enter')}
+async function finishDraft(page,title,due=''){const input=page.locator('#ganttView .ganttDraftTitle');await expect(input).toBeFocused();await input.fill(title);await input.press('Enter');const dueInput=page.locator('#ganttView .ganttDraftRow .dateEdit input[type="text"]');await expect(dueInput).toBeFocused();if(due)await dueInput.fill(due);await dueInput.press('Enter')}
 test.beforeEach(async({page})=>boot(page));
 
 test('PROJECT-SORT-01: 計画開始日で兄弟stable sortし未設定を後置、保存配列は不変',async({page})=>{

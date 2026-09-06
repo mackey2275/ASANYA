@@ -1,13 +1,13 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
-const CURRENT_SCHEMA=APP.includes('pbl022')?'3.0':'2.5';
+const CURRENT_SCHEMA=APP.includes('pbl034')?'3.1':APP.includes('pbl022')?'3.0':'2.5';
 
 const legacyTask=(id,impact,extra={})=>({id,parentId:'',state:'未着手',impact,title:id,owner:'',due:'2026-08-20',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await expect(page).toHaveTitle(APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(CURRENT_SCHEMA);
+  await expect(page).toHaveTitle(APP.includes('pbl034')?'ASANYA v3.1.0':APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':'ASANYA v2.5.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(CURRENT_SCHEMA);
 }
 async function apply(page,schema,items){
   return page.evaluate(({schema,items})=>applyJsonObject({...((schema===null)?{}:{schema_version:schema}),items},'impact-test','impact.json',null,{remember:false,writePermissionGranted:false}),{schema,items});
@@ -43,11 +43,11 @@ test('IMPACT-SCHEMA25-01 round trip uses impact_level only and normalizes invali
   await apply(page,'2.5',[{id:'N0',impact_level:0},{id:'N1',impact_level:1},{id:'N2',impact_level:'2'},{id:'N3',impact_level:3},{id:'BAD',impact_level:99,impact:'A'}]);
   expect(await page.evaluate(()=>data.items.map(x=>x.impact_level))).toEqual([0,1,2,3,0]);
   const saved=await page.evaluate(()=>persistableData());expect(saved.schema_version).toBe(CURRENT_SCHEMA);for(const item of saved.items){expect(item).toHaveProperty('impact_level');expect(item).not.toHaveProperty('impact')}
-  expect(await page.evaluate(()=>schemaMigrationPending)).toBe(CURRENT_SCHEMA==='3.0');
+  expect(await page.evaluate(()=>schemaMigrationPending)).toBe(CURRENT_SCHEMA!=='2.5');
 });
 
 test('IMPACT-SCHEMA25-02 unsupported gap and future schemas are rejected',async({page})=>{
-  expect(await page.evaluate(()=>['2.3','2.4','2.6','9.0'].map(schema=>{try{prepareSchemaObject({schema_version:schema,items:[]});return'accepted'}catch(e){return e.schemaKind}}))).toEqual(CURRENT_SCHEMA==='3.0'?['unsupported-gap','unsupported-gap','unsupported-gap','newer']:['unsupported-gap','unsupported-gap','newer','newer']);
+  expect(await page.evaluate(()=>['2.3','2.4','2.6','9.0'].map(schema=>{try{prepareSchemaObject({schema_version:schema,items:[]});return'accepted'}catch(e){return e.schemaKind}}))).toEqual(CURRENT_SCHEMA!=='2.5'?['unsupported-gap','unsupported-gap','unsupported-gap','newer']:['unsupported-gap','unsupported-gap','newer','newer']);
 });
 
 test('IMPACT-UPGRADE-01 exact old JSON is backed up before primary Schema 2.5 write',async({page})=>{
@@ -103,7 +103,7 @@ test('IMPACT-COMPAT-02 ASANA import boundary maps legacy values through the comm
 });
 
 test('IMPACT-DEFER-01 Task Detail remains unchanged and has no Impact editor',async({page})=>{
-  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.includes('v270')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
+  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.includes('v270')||APP.includes('pbl034')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
 });
 
 test('IMPACT-COPY-01 ordinary copy serializes Schema 2.5 without mutating old primary',async({page})=>{

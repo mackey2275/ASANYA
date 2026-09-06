@@ -11,11 +11,12 @@ async function boot(page,displayMode='todo-tree',width=1280){
   await page.evaluate(({items,displayMode})=>{applyJsonObject({schema_version:'3.0',workspace_info_markdown:'',items},'pbl018','pbl018.json',null,{remember:false,writePermissionGranted:false});setView('all');setDisplayMode(displayMode);clearUndoHistory('pbl018');dirty=false},{items:[task('ROOT'),task('CHILD','ROOT',2000),task('OTHER','',3000)],displayMode});
 }
 
-test('PBL018-SCHEMA-01 visible and runtime current Schema are both 3.0',async({page})=>{
+test('PBL018-SCHEMA-01 visible and runtime current Schema are both the candidate Schema',async({page})=>{
   await page.goto(APP);
-  await expect(page.locator('#schemaMeta')).toHaveText('schema_version 3.0');
-  expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('3.0');
-  expect(await page.evaluate(()=>serializeCurrentSchemaDatabase([]).schema_version)).toBe('3.0');
+  const expected=APP.includes('pbl034')?'3.1':'3.0';
+  await expect(page.locator('#schemaMeta')).toHaveText('schema_version '+expected);
+  expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(expected);
+  expect(await page.evaluate(()=>serializeCurrentSchemaDatabase([]).schema_version)).toBe(expected);
 });
 
 test('PBL018-PLACEMENT-01 Help is the single far-right control in the ASANYA header and survives refresh',async({page})=>{

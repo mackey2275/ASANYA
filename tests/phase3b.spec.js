@@ -3,7 +3,7 @@ const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
-const currentSchema=app.includes('pbl022')||app.includes('pbl018')?'3.0':(app.includes('v250')||app.includes('v260')||app.includes('v270'))?'2.5':'1.5';
+const currentSchema=app.includes('pbl034')||app.includes('pbl036')?'3.1':app.includes('pbl022')||app.includes('pbl018')?'3.0':(app.includes('v250')||app.includes('v260')||app.includes('v270'))?'2.5':'1.5';
 const json=items=>JSON.stringify({schema_version:currentSchema,...(currentSchema!=='1.5'?{workspace_info_markdown:''}:{}),items});
 
 async function boot(page){

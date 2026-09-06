@@ -1,5 +1,6 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
+const expectedSchema=APP.includes('v310')||APP.includes('pbl034')?'3.1':'3.0';
 
 const task=(id,extra={})=>({id,parentId:'',title:id,state:'未着手',owner:'',due:'2026-08-28',planned_duration_days:3,summary:'',repeat:'',completed:false,dependencies:[],sortOrder:1000,impact_level:2,...extra});
 
@@ -21,7 +22,7 @@ test('PBL017-FOLLOWUP-01 approved defaults, minimum, header, and model stay exac
     project:{impact:PROJECT_COL_DEFAULTS.impact,title:PROJECT_COL_DEFAULTS.title,minImpact:PROJECT_COL_MINS.impact},
     field:Object.prototype.hasOwnProperty.call(itemById('A'),'impact_level'),
     legacy:Object.prototype.hasOwnProperty.call(itemById('A'),'impact')
-  }))).toEqual({schema:'3.0',todo:{impact:56,title:424},project:{impact:56,title:424,minImpact:56},field:true,legacy:false});
+  }))).toEqual({schema:expectedSchema,todo:{impact:56,title:424},project:{impact:56,title:424,minImpact:56},field:true,legacy:false});
 
   let labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());
   expect(labels).toContain('優先度');expect(labels).not.toContain('影響度');

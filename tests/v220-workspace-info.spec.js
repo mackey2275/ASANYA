@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const isV250=(APP.includes('v250')||APP.includes('v260')||APP.includes('v270')||APP.includes('v300'));
-const expectedProduct=APP.includes('v300')?'ASANYA v3.0.0':APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':APP.includes('v240')?'ASANYA v2.4.0':APP.includes('v230')||APP.includes('task_detail_phase')?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':'ASANYA v2.2.0';
+const expectedProduct=APP.includes('v310')||APP.includes('pbl034')?'ASANYA v3.1.0':APP.includes('v300')?'ASANYA v3.0.0':APP.includes('v270')?'ASANYA v2.7.0':APP.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':APP.includes('v240')?'ASANYA v2.4.0':APP.includes('v230')||APP.includes('task_detail_phase')?'ASANYA v2.3.0':APP.includes('v220_dev')?'ASANYA v2.2.0-dev':'ASANYA v2.2.0';
 
 const task=(id='T1')=>({id,parentId:'',state:'未着手',impact:'',title:id,owner:'',due:'',planned_duration_days:null,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000});
 async function boot(page,markdown='',schema='2.2'){

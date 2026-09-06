@@ -31,16 +31,16 @@ test('GANTT-VISUAL-02: 状態別の中空/中実と期限超過実績色の優�
   const colors=await page.evaluate(()=>Object.fromEntries(['doing','hold','cancel'].map(id=>[id,getComputedStyle(document.querySelector(`.ganttRow[data-task-id="${id}"] .actualLine`)).backgroundColor])));expect(colors.doing).not.toBe(colors.hold);expect(colors.doing).not.toBe(colors.cancel);expect(colors.hold).not.toBe(colors.cancel);
 });
 
-test('DRAFT-FLOW-01: Project Listの新規taskはtitle→due→計画日数',async({page})=>{
-  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'test','draft.json',null,{remember:false}));await page.evaluate(()=>setMode('team'));await page.locator('#b_title').fill('新規');await page.locator('#b_title').press('Enter');await expect(page.locator('#b_due')).toBeFocused();await page.locator('#b_due').fill('2026/8/5');await page.locator('#b_due').press('Enter');await expect(page.locator('#b_planned')).toBeFocused();await page.locator('#b_planned').fill('1');await page.locator('#b_planned').press('Enter');expect(await page.evaluate(()=>data.items[0])).toMatchObject({title:'新規',due:'2026-08-05',planned_duration_days:1});
+test('DRAFT-FLOW-01: Project Listの新規taskはtitle→dueで確定し計画日数は既存編集できる',async({page})=>{
+  await page.evaluate(()=>applyJsonObject({schema_version:'1.8',items:[]},'test','draft.json',null,{remember:false}));await page.evaluate(()=>setMode('team'));await page.locator('#b_title').fill('新規');await page.locator('#b_title').press('Enter');await expect(page.locator('#b_due')).toBeFocused();await page.locator('#b_due').fill('2026/8/5');await page.locator('#b_due').press('Enter');expect(await page.evaluate(()=>draftTaskId)).toBe('');const id=await page.evaluate(()=>data.items[0].id);const planned=page.locator(`.ganttRow[data-task-id="${id}"] .ganttPlanned`);await planned.click();await planned.locator('input').fill('1');await planned.locator('input').press('Enter');expect(await page.evaluate(()=>data.items[0])).toMatchObject({title:'新規',due:'2026-08-05',planned_duration_days:1});
 });
 
-test('DRAFT-FLOW-02: child/grandchildはduration確定まで位置固定し確定後sort',async({page})=>{
+test('DRAFT-FLOW-02: childはdueで確定・sortし計画日数を既存編集できる',async({page})=>{
   await show(page,[task('p','親'),task('late','遅い子',{parentId:'p',due:'2026-08-20',planned_duration_days:1,sortOrder:2000})]);
   await page.locator('.ganttRow[data-task-id="p"] .ganttTaskName').click({position:{x:5,y:5}});await page.keyboard.press('Insert');
   const id=await page.evaluate(()=>draftTaskId),title=page.locator('.ganttDraftRow .ganttDraftTitle');await title.fill('早い子');await title.press('Enter');
   const due=page.locator('.ganttDraftRow .ganttDue input[type="text"]');await due.fill('2026/8/5');await due.press('Enter');
-  expect((await order(page)).indexOf(id)).toBeGreaterThan((await order(page)).indexOf('late'));const duration=page.locator('.ganttDraftRow .ganttPlanned input');await expect(duration).toBeFocused();await duration.fill('1');await duration.press('Enter');expect((await order(page)).slice(0,3)).toEqual(['p',id,'late']);expect(await page.evaluate(id=>itemById(id).parentId,id)).toBe('p');
+  expect(await page.evaluate(()=>draftTaskId)).toBe('');expect((await order(page)).slice(0,3)).toEqual(['p',id,'late']);const duration=page.locator(`.ganttRow[data-task-id="${id}"] .ganttPlanned`);await duration.click();await duration.locator('input').fill('1');await duration.locator('input').press('Enter');expect((await order(page)).slice(0,3)).toEqual(['p',id,'late']);expect(await page.evaluate(id=>itemById(id).parentId,id)).toBe('p');
   await page.locator(`.ganttRow[data-task-id="${id}"] .ganttTaskName`).click({position:{x:5,y:5}});await page.keyboard.press('Insert');const gid=await page.evaluate(()=>draftTaskId);await page.locator('.ganttDraftRow .ganttDraftTitle').fill('孫');await page.locator('.ganttDraftRow .ganttDraftTitle').press('Enter');await page.locator('.ganttDraftRow .ganttDue input[type="text"]').press('Escape');expect(await page.evaluate(gid=>itemById(gid),gid)).toBeUndefined();expect(await page.evaluate(()=>selectedTaskId)).toBe(id);
 });
 
