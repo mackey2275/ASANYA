@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
 
 const task=(id,parentId='',sortOrder=1000)=>({id,parentId,title:id,state:'未着手',owner:'',due:'2026-09-10',planned_duration_days:3,summary:'概要',repeat:'',recurrence_rule:null,recurrence_schedule_date:null,completed:false,dependencies:[],sortOrder,impact_level:1});
 
@@ -13,7 +13,7 @@ async function boot(page,displayMode='todo-tree',width=1280){
 
 test('PBL018-SCHEMA-01 visible and runtime current Schema are both the candidate Schema',async({page})=>{
   await page.goto(APP);
-  const expected=APP.includes('pbl034')?'3.1':'3.0';
+  const expected=TARGET_SCHEMA_VERSION||(APP.includes('pbl034')?'3.1':'3.0');
   await expect(page.locator('#schemaMeta')).toHaveText('schema_version '+expected);
   expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(expected);
   expect(await page.evaluate(()=>serializeCurrentSchemaDatabase([]).schema_version)).toBe(expected);

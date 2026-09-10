@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
-const {APP}=require('./helpers/app-target');
-const isV310=APP.includes('v310')||APP.includes('pbl034'),isV300=APP.includes('v300')||APP.includes('pbl022')||APP.includes('pbl018'),isV250=isV310||APP.includes('v250')||APP.includes('v260')||APP.includes('v270')||APP.includes('v300');
+const {APP,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+const isV310=TARGET_SCHEMA_VERSION==='3.1'||APP.includes('v310')||APP.includes('pbl034'),isV300=APP.includes('v300')||APP.includes('pbl022')||APP.includes('pbl018'),isV250=isV310||APP.includes('v250')||APP.includes('v260')||APP.includes('v270')||APP.includes('v300');
 const task=id=>({id,parentId:'',state:'',impact:'',title:id,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000});
 const json=(items,schema=isV310?'3.1':isV300?'3.0':isV250?'2.5':'1.8')=>JSON.stringify({schema_version:schema,...(schema==='3.1'||schema==='3.0'||schema==='2.5'?{workspace_info_markdown:''}:{}),items});
 async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload()}

@@ -1,9 +1,9 @@
 const { test, expect } = require('playwright/test');
 const path = require('node:path');
 
-const {APP:app}=require('./helpers/app-target');
-const isV310=app.includes('v310')||app.includes('pbl034'),isV300=app.includes('v300')||app.includes('pbl022')||app.includes('pbl018'),isV250=(isV310||app.includes('v250')||app.includes('v260')||app.includes('v270')||app.includes('v300')),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=isV310?'3.1':isV300?'3.0':isV250?'2.5':isV220?'2.2':'2.0';
-const expectedProduct=isV310?'ASANYA v3.1.0':app.includes('v300')?'ASANYA v3.0.0':app.includes('v270')?'ASANYA v2.7.0':app.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
+const {APP:app,TARGET_PRODUCT_VERSION,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+const isV310=TARGET_SCHEMA_VERSION==='3.1'||app.includes('v310')||app.includes('pbl034'),isV300=app.includes('v300')||app.includes('pbl022')||app.includes('pbl018'),isV250=(isV310||app.includes('v250')||app.includes('v260')||app.includes('v270')||app.includes('v300')),isV240=app.includes('v240'),isTaskDetail=app.includes('task_detail_phase'),isV230=app.includes('v230')||isTaskDetail,isPbl002=app.includes('pbl002_'),isV220=app.includes('v220_dev')||isPbl002||isV230||isV240||isV250,expectedSchema=TARGET_SCHEMA_VERSION||(isV310?'3.1':isV300?'3.0':isV250?'2.5':isV220?'2.2':'2.0');
+const expectedProduct=TARGET_PRODUCT_VERSION?'ASANYA v'+TARGET_PRODUCT_VERSION:isV310?'ASANYA v3.1.0':app.includes('v300')?'ASANYA v3.0.0':app.includes('v270')?'ASANYA v2.7.0':app.includes('v260')?'ASANYA v2.6.0':isV250?'ASANYA v2.5.0':isV240?'ASANYA v2.4.0':isV230?'ASANYA v2.3.0':isPbl002?'ASANYA v2.2.0':isV220?'ASANYA v2.2.0-dev':app.includes('v211_dev')?'ASANYA v2.1.1-dev':app.includes('v211')?'ASANYA v2.1.1':app.includes('v210')?'ASANYA v2.1.0':'ASANYA v2.0.0';
 const fixture = name => path.join(__dirname, 'fixtures', name);
 
 async function open(page) {

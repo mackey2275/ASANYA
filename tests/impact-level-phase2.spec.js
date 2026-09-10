@@ -1,6 +1,6 @@
 const {test,expect}=require('playwright/test');
-const {APP}=require('./helpers/app-target');
-const CURRENT_SCHEMA=APP.includes('pbl034')?'3.1':APP.includes('pbl022')?'3.0':'2.5';
+const {APP,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+const CURRENT_SCHEMA=TARGET_SCHEMA_VERSION||(APP.includes('pbl034')?'3.1':APP.includes('pbl022')?'3.0':'2.5');
 
 const task=(id,impact_level=0,extra={})=>({id,parentId:'',title:id,state:'',owner:'',due:'2026-08-28',planned_duration_days:3,summary:'',repeat:'',completed:false,dependencies:[],sortOrder:1000,impact_level,...extra});
 async function boot(page,items=[task('A')],mode='personal'){
@@ -33,7 +33,7 @@ test('IMPACT2-SCROLL-01 same-task Impact rerender preserves pane scroll',async({
 });
 
 test('IMPACT2-COLUMNS-01 ToDo and Project place Priority after the compact add operation and before Status',async({page})=>{
-  const impactLabel=(APP.includes('priority_width_followup')||APP.includes('v260')||APP.includes('v270')||APP.includes('pbl034'))?'優先度':'影響度',pbl021=APP.includes('pbl021')||APP.includes('pbl034');await boot(page);let labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());expect(labels).toContain(impactLabel);if(pbl021)expect(labels).not.toContain('子');
+  const current=TARGET_SCHEMA_VERSION==='3.1',impactLabel=(current||APP.includes('priority_width_followup')||APP.includes('v260')||APP.includes('v270')||APP.includes('pbl034'))?'優先度':'影響度',pbl021=current||APP.includes('pbl021')||APP.includes('pbl034');await boot(page);let labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());expect(labels).toContain(impactLabel);if(pbl021)expect(labels).not.toContain('子');
   await page.evaluate(()=>setMode('team'));labels=(await page.locator('#ganttView .ganttHeader .projectInfoTable th').allTextContents()).map(x=>x.trim());expect(labels.slice(labels.indexOf(impactLabel),labels.indexOf('ステータス')+1)).toEqual([impactLabel,'ステータス']);const cells=await page.locator('.ganttRow[data-task-id="A"] .projectInfoTable td').evaluateAll(es=>es.map(e=>e.querySelector('.impactStars')?'impact':e.querySelector('select')?.getAttribute('onchange')?.includes('changeState')?'state':e.querySelector('.taskAddBtn,.childBtn')?'add':'other'));expect(cells.slice(cells.indexOf('impact'),cells.indexOf('state')+1)).toEqual(['impact','state'])
 });
 

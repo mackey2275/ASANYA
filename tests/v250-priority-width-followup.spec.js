@@ -1,6 +1,6 @@
 const {test,expect}=require('playwright/test');
-const {APP}=require('./helpers/app-target');
-const expectedSchema=APP.includes('v310')||APP.includes('pbl034')?'3.1':'3.0';
+const {APP,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+const expectedSchema=TARGET_SCHEMA_VERSION||(APP.includes('v310')||APP.includes('pbl034')?'3.1':'3.0');
 
 const task=(id,extra={})=>({id,parentId:'',title:id,state:'未着手',owner:'',due:'2026-08-28',planned_duration_days:3,summary:'',repeat:'',completed:false,dependencies:[],sortOrder:1000,impact_level:2,...extra});
 

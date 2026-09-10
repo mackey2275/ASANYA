@@ -74,8 +74,7 @@ test('PBL2-DND-06 Project effective-start scope and List/Gantt shared order',asy
 
 test('PBL2-DND-07 persisted sort order keeps Schema, hierarchy, and workspace information',async({page})=>{
   await boot(page,[task('P'),task('A',{parentId:'P',sortOrder:1000}),task('B',{parentId:'P',sortOrder:2000})]);await dragAfter(page,'A','B');
-  const json=await page.evaluate(()=>persistableData());await page.evaluate(json=>applyJsonObject(json,'Reload','reload.json',null,{remember:false,writePermissionGranted:false}),json);
-  const expectedSchema=APP.includes('pbl034')?'3.1':'3.0';
+  const {json,expectedSchema}=await page.evaluate(()=>({json:persistableData(),expectedSchema:CURRENT_SCHEMA_VERSION}));expect(json.schema_version).toBe(expectedSchema);await page.evaluate(json=>applyJsonObject(json,'Reload','reload.json',null,{remember:false,writePermissionGranted:false}),json);
   expect(await page.evaluate(()=>({schema:data.schema_version,current:CURRENT_SCHEMA_VERSION,workspace:data.workspace_info_markdown,parentA:itemById('A').parentId,parentB:itemById('B').parentId,order:moveGroup(data.items.indexOf(itemById('A'))).map(p=>p.x.id)}))).toEqual({schema:expectedSchema,current:expectedSchema,workspace:'Phase 2 workspace',parentA:'P',parentB:'P',order:['B','A']});
 });
 

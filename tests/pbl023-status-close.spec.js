@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
 
 const task=(id,extra={})=>({id,parentId:'',title:id,state:'未着手',owner:'',due:'2026-09-10',planned_duration_days:2,summary:`summary-${id}`,repeat:'',completed:false,dependencies:[],sortOrder:1000,impact_level:2,...extra});
 async function boot(page,items,mode='personal'){
@@ -102,7 +102,7 @@ test('PBL023-J Task Detail Status completion stays Open and participates in one 
 });
 
 test('PBL023-K PBL-017 geometry and Schema/persistence remain exact',async({page})=>{
-  await boot(page,[task('A')]);expect(await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,todo:[DEF.impact,DEF.title],project:[PROJECT_COL_DEFAULTS.impact,PROJECT_COL_DEFAULTS.title],fields:Object.keys(persistableData().items[0]).filter(k=>['state','completed'].includes(k)).sort()}))).toEqual({schema:APP.includes('pbl034')?'3.1':'3.0',todo:[56,424],project:[56,424],fields:['completed','state']});
+  await boot(page,[task('A')]);expect(await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,todo:[DEF.impact,DEF.title],project:[PROJECT_COL_DEFAULTS.impact,PROJECT_COL_DEFAULTS.title],fields:Object.keys(persistableData().items[0]).filter(k=>['state','completed'].includes(k)).sort()}))).toEqual({schema:TARGET_SCHEMA_VERSION||(APP.includes('pbl034')?'3.1':'3.0'),todo:[56,424],project:[56,424],fields:['completed','state']});
   const labels=(await page.locator('#head th').allTextContents()).map(x=>x.trim());expect(labels).toContain('優先度');expect(labels).toContain('終了');
 });
 

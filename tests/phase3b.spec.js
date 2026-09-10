@@ -3,8 +3,7 @@ const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
 const {APP:app}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[],...extra});
-const currentSchema=app.includes('pbl034')||app.includes('pbl036')?'3.1':app.includes('pbl022')||app.includes('pbl018')?'3.0':(app.includes('v250')||app.includes('v260')||app.includes('v270'))?'2.5':'1.5';
-const json=items=>JSON.stringify({schema_version:currentSchema,...(currentSchema!=='1.5'?{workspace_info_markdown:''}:{}),items});
+const json=(page,items)=>page.evaluate(items=>JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,...(CURRENT_SCHEMA_VERSION!=='1.5'?{workspace_info_markdown:''}:{}),items}),items);
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(app);
@@ -22,7 +21,7 @@ async function startDraft(page,key='Enter'){await page.evaluate(()=>selectTask('
 test.beforeEach(async({page})=>boot(page));
 
 test('DB-13, DB-14: コピー履歴表示と履歴だけの削除',async({page})=>{
-  await makeFile(page,'source','current.json',json([task('t1','コピー対象')]));await makeFile(page,'copy','saved-copy.json','');await openDb(page,'source');
+  await makeFile(page,'source','current.json',await json(page,[task('t1','コピー対象')]));await makeFile(page,'copy','saved-copy.json','');await openDb(page,'source');
   await page.evaluate(()=>__fsMock.queueSave('copy'));await page.getByRole('button',{name:'現在DBのコピーを保存'}).click();
   await expect(page.locator('.latestCopyBtn')).toHaveText('saved-copy.json');expect(await page.evaluate(()=>lastCopy.handle.__mockId)).toBe('copy');
   const before=await snapshot(page,'copy');await page.locator('.latestCopyBtn').locator('xpath=..').locator('.historyRemove').click();
@@ -30,7 +29,7 @@ test('DB-13, DB-14: コピー履歴表示と履歴だけの削除',async({page})
   await expect(page.locator('#toast')).toContainText('JSONファイルは削除していません');
 });
 test('DB-15: 最近使用DBの履歴だけを削除',async({page})=>{
-  await makeFile(page,'one','one.json',json([task('one-task')]));await makeFile(page,'two','two.json',json([task('two-task')]));await openDb(page,'one');await openDb(page,'two');
+  await makeFile(page,'one','one.json',await json(page,[task('one-task')]));await makeFile(page,'two','two.json',await json(page,[task('two-task')]));await openDb(page,'one');await openDb(page,'two');
   // The JS mock handle is not structured-cloneable like a native
   // FileSystemFileHandle. Register a handle-less recent entry, which is also a
   // supported production history state (the file must be reselected to open).
@@ -41,7 +40,7 @@ test('DB-15: 最近使用DBの履歴だけを削除',async({page})=>{
 });
 
 test('DB-17, DB-18: 保存場所確認のキャンセル・別JSON選択でDB不変',async({page})=>{
-  await makeFile(page,'current','current.json',json([task('current-task')]));await makeFile(page,'other','other.json',json([task('other-task')]));await openDb(page,'current');
+  await makeFile(page,'current','current.json',await json(page,[task('current-task')]));await makeFile(page,'other','other.json',await json(page,[task('other-task')]));await openDb(page,'current');
   const original=await page.evaluate(()=>({name:currentDbName,id:currentDbHandle.__mockId,items:data.items.map(x=>x.id)}));
   let msg=await dialogFrom(page,()=>page.getByRole('button',{name:'保存場所を確認'}).click());expect(msg).toContain('ファイルを選択する必要はありません');expect(msg).toContain('DBが切り替わることはありません');
   expect(await page.evaluate(()=>({name:currentDbName,id:currentDbHandle.__mockId,items:data.items.map(x=>x.id)}))).toEqual(original);

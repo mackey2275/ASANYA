@@ -1,8 +1,8 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
 
-const {APP:app}=require('./helpers/app-target');
-const isV310=app.includes('v310')||app.includes('pbl034'),isV300=app.includes('v300')||app.includes('pbl022')||app.includes('pbl018'),isV250=isV310||app.includes('v250')||app.includes('v260')||app.includes('v270')||app.includes('v300');
+const {APP:app,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+const isV310=TARGET_SCHEMA_VERSION==='3.1'||app.includes('v310')||app.includes('pbl034'),isV300=app.includes('v300')||app.includes('pbl022')||app.includes('pbl018'),isV250=isV310||app.includes('v250')||app.includes('v260')||app.includes('v270')||app.includes('v300');
 const task=(id,title=id)=>({id,parentId:'',state:'',title,completed:false,due:'',sortOrder:1000,dependencies:[]});
 const json=items=>JSON.stringify({schema_version:isV310?'3.1':isV300?'3.0':isV250?'2.5':'1.5',...(isV310||isV300||isV250?{workspace_info_markdown:''}:{}),items});
 

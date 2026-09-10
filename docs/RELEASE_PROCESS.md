@@ -244,6 +244,8 @@ Recalculate the current and previous stable artifact hashes. Confirm previous st
 
 The final release record must include the release commit, tag object and peeled target, `origin/main` before and after, Pages decision and commit, artifact filename and SHA-256, schema version, validation totals, Known Issues, intentional exclusions, tracked-clean state, and remote synchronization state.
 
+Only after all applicable closure checks above succeed, synchronize the durable backlog and release records. Mark shipped PBLs Released, record resolved follow-ups without erasing their history, carry forward remaining Known Issues and Deferred Follow-ups, and identify the new formal baseline and its validation and Git references. A validated RC or partially completed release remains release-pending rather than Released.
+
 ## 14. Stop Conditions
 
 Stop the release and report the exact evidence if any of the following occurs:

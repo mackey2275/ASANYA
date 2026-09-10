@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_PRODUCT_VERSION}=require('./helpers/app-target');
 
 const task=(id,extra={})=>({id,parentId:'',title:id,state:'未着手',owner:'',due:'2026-09-10',planned_duration_days:2,summary:'',repeat:'',completed:false,dependencies:[],sortOrder:1000,impact_level:0,...extra});
 async function boot(page,items,schema='3.1'){
@@ -10,7 +10,7 @@ async function boot(page,items,schema='3.1'){
 
 test('PBL034-SCHEMA 3.0 migrates, Memo is valid in 3.1, and future schema is rejected',async({page})=>{
   await boot(page,[task('A')],'3.0');
-  expect(await page.evaluate(()=>({current:CURRENT_SCHEMA_VERSION,loaded:loadedSchemaVersion,pending:schemaMigrationPending,title:APP_TITLE}))).toEqual({current:'3.1',loaded:'3.0',pending:true,title:'ASANYA v3.1.0'});
+  expect(await page.evaluate(()=>({current:CURRENT_SCHEMA_VERSION,loaded:loadedSchemaVersion,pending:schemaMigrationPending,title:APP_TITLE}))).toEqual({current:'3.1',loaded:'3.0',pending:true,title:'ASANYA v'+(TARGET_PRODUCT_VERSION||'3.1.0')});
   await page.evaluate(()=>changeState(0,'メモ'));
   expect(await page.evaluate(()=>persistableData())).toMatchObject({schema_version:'3.1',items:[{id:'A',state:'メモ'}]});
   expect(await page.evaluate(()=>norm({id:'X',state:'UNKNOWN'}).state)).toBe('');

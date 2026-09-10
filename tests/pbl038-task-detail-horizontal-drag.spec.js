@@ -18,9 +18,14 @@ test('PBL038-CORE-01 eligible header pointer drag moves only horizontally',async
 });
 
 test('PBL038-CORE-02 left and right clamps keep the pane reachable and preserve Project scroll',async({page})=>{
-  await boot(page);await page.evaluate(()=>{ganttView.scrollLeft=37;const unified=document.querySelector('.projectUnified');if(unified)unified.scrollTop=19});const beforeScroll=await page.evaluate(()=>({outer:ganttView.scrollLeft,vertical:document.querySelector('.projectUnified')?.scrollTop||0}));
+  await boot(page);
+  await expect.poll(()=>page.locator('.projectOuterScrollDock').evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await page.evaluate(()=>{const dock=document.querySelector('.projectOuterScrollDock');dock.scrollLeft=37;dock.dispatchEvent(new Event('scroll'));const unified=document.querySelector('.projectUnified');if(unified)unified.scrollTop=19});
+  await expect.poll(()=>page.evaluate(()=>({outer:ganttView.scrollLeft,dock:document.querySelector('.projectOuterScrollDock').scrollLeft}))).toEqual({outer:37,dock:37});
+  const beforeScroll=await page.evaluate(()=>({outer:ganttView.scrollLeft,vertical:document.querySelector('.projectUnified')?.scrollTop||0}));
   await dragHeader(page,-3000);let box=await paneBox(page);expect(box.x).toBeGreaterThanOrEqual(7);await dragHeader(page,3000);box=await paneBox(page);near(box.x+box.width,1280-14,2);
-  expect(await page.evaluate(()=>({outer:ganttView.scrollLeft,vertical:document.querySelector('.projectUnified')?.scrollTop||0}))).toEqual(beforeScroll);
+  await expect.poll(()=>page.evaluate(()=>({outer:ganttView.scrollLeft,dock:document.querySelector('.projectOuterScrollDock').scrollLeft,vertical:document.querySelector('.projectUnified')?.scrollTop||0}))).toEqual({...beforeScroll,dock:beforeScroll.outer});
 });
 
 test('PBL038-CORE-03 close control never drags and explicit close/reopen preserves offset',async({page})=>{
@@ -45,4 +50,42 @@ test('PBL038-RESPONSIVE-02 resize reclamps and reload returns to the default rig
 
 test('PBL038-CONTRACT-01 Help stacking and fixed Task Detail geometry remain authoritative',async({page})=>{
   await boot(page);await dragHeader(page,-140);const contract=await page.evaluate(()=>{openHelp();const pane=getComputedStyle(taskDetailPane),help=getComputedStyle(document.getElementById('helpPopover'));return{top:pane.top,bottom:pane.bottom,width:pane.width,z:Number(pane.zIndex),helpZ:Number(help.zIndex),position:pane.position,bodyOverflow:getComputedStyle(taskDetailPane.querySelector('.taskDetailPaneBody')).overflowY}});expect(contract).toEqual({top:'52px',bottom:'14px',width:contract.width,z:1050,helpZ:1600,position:'fixed',bodyOverflow:'auto'});expect(parseFloat(contract.width)).toBeGreaterThanOrEqual(260);
+});
+
+test('PBL038-FU-01 Summary caret and focus survive an actual header drag',async({page})=>{
+  await boot(page);const summary=page.locator('.taskDetailSummary');await summary.fill('alpha beta gamma');await summary.evaluate(el=>{el.focus();el.setSelectionRange(6,6)});const before=await paneBox(page);await dragHeader(page,-120);const after=await paneBox(page);expect(after.x).toBeLessThan(before.x-100);await expect(summary).toBeFocused();expect(await summary.evaluate(el=>({start:el.selectionStart,end:el.selectionEnd,value:el.value}))).toEqual({start:6,end:6,value:'alpha beta gamma'});
+});
+
+test('PBL038-FU-02 Summary non-empty selection survives an actual header drag',async({page})=>{
+  await boot(page);const summary=page.locator('.taskDetailSummary');await summary.fill('alpha beta gamma');await summary.evaluate(el=>{el.focus();el.setSelectionRange(6,10)});const before=await paneBox(page);await dragHeader(page,-120);expect((await paneBox(page)).x).toBeLessThan(before.x-100);await expect(summary).toBeFocused();expect(await summary.evaluate(el=>({start:el.selectionStart,end:el.selectionEnd,selected:el.value.slice(el.selectionStart,el.selectionEnd),value:el.value}))).toEqual({start:6,end:10,selected:'beta',value:'alpha beta gamma'});
+});
+
+test('PBL038-FU-03 actual header drag never blurs or focuses out the active Summary editor',async({page})=>{
+  await boot(page);const summary=page.locator('.taskDetailSummary');await summary.evaluate(el=>{window.__pbl038FocusEvents={blur:0,focusout:0};el.addEventListener('blur',()=>__pbl038FocusEvents.blur++);el.addEventListener('focusout',()=>__pbl038FocusEvents.focusout++);el.focus()});await dragHeader(page,-120);await expect(summary).toBeFocused();expect(await page.evaluate(()=>__pbl038FocusEvents)).toEqual({blur:0,focusout:0});
+});
+
+test('PBL038-FU-04 plain header click and drag keep an edit uncommitted until normal blur',async({page})=>{
+  await boot(page);const summary=page.locator('.taskDetailSummary');await summary.fill('uncommitted edit');await summary.evaluate(el=>window.__pbl038Original=el);const clickBox=await page.locator('.taskDetailPaneHeader').boundingBox();await page.mouse.click(clickBox.x+90,clickBox.y+clickBox.height/2);await expect(summary).toBeFocused();expect(await page.evaluate(()=>({model:itemById('A').summary,visible:document.querySelector('.taskDetailSummary').value,dirty,undo:undoStack.length,same:document.querySelector('.taskDetailSummary')===__pbl038Original}))).toEqual({model:'',visible:'uncommitted edit',dirty:false,undo:0,same:true});
+  const before=await paneBox(page);await dragHeader(page,-120);expect((await paneBox(page)).x).toBeLessThan(before.x-100);expect(await page.evaluate(()=>({model:itemById('A').summary,visible:document.querySelector('.taskDetailSummary').value,dirty,undo:undoStack.length,same:document.querySelector('.taskDetailSummary')===__pbl038Original}))).toEqual({model:'',visible:'uncommitted edit',dirty:false,undo:0,same:true});await summary.blur();expect(await page.evaluate(()=>({model:itemById('A').summary,dirty,undo:undoStack.length}))).toEqual({model:'uncommitted edit',dirty:true,undo:1});
+});
+
+test('PBL038-FU-05 synthetic composition does not block drag or corrupt uncommitted Summary state',async({page})=>{
+  // Synthetic composition events do not model native Windows/Chrome IME pointer behavior. This verifies only that ASANYA does not intentionally block drag or corrupt local editor/model state.
+  await boot(page);const summary=page.locator('.taskDetailSummary');await summary.fill('alpha beta gamma');await summary.focus();const before=await paneBox(page);await summary.dispatchEvent('compositionstart',{data:'変換'});await dragHeader(page,-120);expect((await paneBox(page)).x).toBeLessThan(before.x-100);await expect(summary).toBeFocused();expect(await page.evaluate(()=>({value:document.querySelector('.taskDetailSummary').value,model:itemById('A').summary,dirty,undo:undoStack.length,drag:pbl038TaskDetailDrag}))).toEqual({value:'alpha beta gamma',model:'',dirty:false,undo:0,drag:null});await summary.dispatchEvent('compositionend',{data:'変換'});await summary.type('!');await expect(summary).toHaveValue('alpha beta gamma!');expect(await page.evaluate(()=>({model:itemById('A').summary,dirty,undo:undoStack.length}))).toEqual({model:'',dirty:false,undo:0});
+});
+
+test('PBL038-FU-06 Title editor retains focus and uncommitted value during drag',async({page})=>{
+  await boot(page);const title=page.locator('.taskDetailTitleInput');await title.fill('Uncommitted title');const before=await paneBox(page);await dragHeader(page,-120);expect((await paneBox(page)).x).toBeLessThan(before.x-100);await expect(title).toBeFocused();await expect(title).toHaveValue('Uncommitted title');expect(await page.evaluate(()=>({model:itemById('A').title,dirty,undo:undoStack.length}))).toEqual({model:'Task A',dirty:false,undo:0});
+});
+
+test('PBL038-FU-07 Owner editor retains focus and uncommitted value during drag',async({page})=>{
+  await boot(page);const owner=page.locator('#taskDetailPane').getByRole('textbox',{name:'担当',exact:true});await owner.fill('Uncommitted owner');const before=await paneBox(page);await dragHeader(page,-120);expect((await paneBox(page)).x).toBeLessThan(before.x-100);await expect(owner).toBeFocused();await expect(owner).toHaveValue('Uncommitted owner');expect(await page.evaluate(()=>({model:itemById('A').owner,dirty,undo:undoStack.length}))).toEqual({model:'',dirty:false,undo:0});
+});
+
+test('PBL038-FU-08 planned completion editor does not blur validate or commit during drag',async({page})=>{
+  await boot(page);const due=page.locator('#taskDetailPane').getByRole('textbox',{name:'計画完了',exact:true});await due.fill('2026/10/01');await due.evaluate(el=>{window.__pbl038DateEvents={blur:0,focusout:0};el.addEventListener('blur',()=>__pbl038DateEvents.blur++);el.addEventListener('focusout',()=>__pbl038DateEvents.focusout++)});const before=await paneBox(page);await dragHeader(page,-120);expect((await paneBox(page)).x).toBeLessThan(before.x-100);await expect(due).toBeFocused();await expect(due).toHaveValue('2026/10/01');expect(await page.evaluate(()=>({due:itemById('A').due,dirty,undo:undoStack.length,events:__pbl038DateEvents,dialog:!!document.querySelector('.askBack')}))).toEqual({due:'2026-09-30',dirty:false,undo:0,events:{blur:0,focusout:0},dialog:false});
+});
+
+test('PBL038-FU-09 movement below 3px is ignored and movement beyond it drags',async({page})=>{
+  await boot(page);const header=page.locator('.taskDetailPaneHeader'),box=await header.boundingBox(),x=box.x+90,y=box.y+box.height/2,before=await paneBox(page);await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-2,y);await page.mouse.up();near((await paneBox(page)).x,before.x);await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-4,y);await page.mouse.up();expect((await paneBox(page)).x).toBeLessThan(before.x-2.5);
 });

@@ -1,5 +1,5 @@
 const {test,expect}=require('playwright/test');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
 
 const task=(id,parentId='',sortOrder=1000)=>({id,parentId,title:id,state:'未着手',owner:'',due:'',planned_duration_days:null,summary:`summary-${id}`,repeat:'',completed:false,dependencies:[],sortOrder,impact_level:2});
 async function boot(page,items,mode='personal'){
@@ -33,5 +33,5 @@ test('PBL026-05 Project task-add menu child action shares aligned placeholder ge
 });
 
 test('PBL026-06 PBL-023 terminology/semantics and PBL-024/025 selectors remain intact',async({page})=>{
-  await boot(page,[task('A')]);await expect(page.locator('#vOpen')).toHaveText('未終了');await expect(page.locator('#head th').first()).toHaveText('終了');await page.evaluate(()=>changeState(0,'完了'));expect(await page.evaluate(()=>({state:itemById('A').state,completed:itemById('A').completed}))).toEqual({state:'完了',completed:false});await page.evaluate(()=>setMode('team'));await expect(page.locator('.ganttRow[data-task-id="A"] .sum')).toBeVisible();await expect(page.locator('.ganttRow[data-task-id="A"] .taskDetailOpenBtn')).toBeVisible();expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(APP.includes('pbl034')?'3.1':APP.includes('pbl022')?'3.0':'2.5')
+  await boot(page,[task('A')]);await expect(page.locator('#vOpen')).toHaveText('未終了');await expect(page.locator('#head th').first()).toHaveText('終了');await page.evaluate(()=>changeState(0,'完了'));expect(await page.evaluate(()=>({state:itemById('A').state,completed:itemById('A').completed}))).toEqual({state:'完了',completed:false});await page.evaluate(()=>setMode('team'));await expect(page.locator('.ganttRow[data-task-id="A"] .sum')).toBeVisible();await expect(page.locator('.ganttRow[data-task-id="A"] .taskDetailOpenBtn')).toBeVisible();expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(TARGET_SCHEMA_VERSION||(APP.includes('pbl034')?'3.1':APP.includes('pbl022')?'3.0':'2.5'))
 });

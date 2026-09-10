@@ -46,6 +46,10 @@ Classify every failure before changing anything:
 
 Do not distort product behavior, weaken meaningful assertions, or remove useful coverage to obtain PASS. Normalize obsolete formal expectations only to the approved current specification while preserving their validation purpose. An isolated rerun PASS does not dismiss a suite failure; investigate timing, rendering convergence, scroll, and fixture effects. Explain changes in Relevant composition or counts and prove that intended coverage remains.
 
+When multiple PBLs accumulate into one release candidate, older formal tests may still assume previous versions, schemas, interaction sequences, dates, or fixture behavior even though Focused and Relevant validation passed. Compare every Full-regression failure with the currently approved specification before treating it as a product regression. When normalization is justified, preserve the original meaningful assertion and avoid blind global replacement of versions, schemas, strings, or interaction steps. Take particular care with migration and future-schema boundaries, current-date-dependent recurrence, migration confirmation and backup safety, autosave, persistence, and current interaction sequences.
+
+Formal tests and shared helpers should not normally infer the current product version, schema version, or candidate type from artifact filename substrings. Prefer explicit target configuration, runtime product identity and current schema values, or explicit fixture metadata. Filename-dependent behavior is acceptable only when the filename is itself under test or a historical artifact or fixture explicitly requires it; make that dependency deliberate so a development-to-formal filename change cannot silently change test semantics.
+
 Before treating cumulative work as releasable, run the complete current formal Full regression unless the user explicitly accepts an exception. The default gate is:
 
 ```text
@@ -54,7 +58,9 @@ Before treating cumulative work as releasable, run the complete current formal F
 0 intentional exclusions
 ```
 
-Confirm the all-tests runner still discovers the complete inventory. If product code or formal tests change during a run, rerun the entire Full regression from a fresh process; do not combine partial runs. Give particular weight to Full regression for shared logic, persistence, Undo/Redo, rendering, schema, and migration changes. Test-only changes do not automatically invalidate accepted Human QA when the product artifact is unchanged.
+Confirm the all-tests runner still discovers the complete inventory. If product code, formal tests, fixtures, helpers, or runner state changes, run the affected Focused and Relevant validation, freeze the corrected state, and rerun the entire Full regression from test 1 in a fresh process; do not combine results from before and after the change. Give particular weight to Full regression for shared logic, persistence, Undo/Redo, rendering, schema, and migration changes. Test-only changes do not automatically invalidate accepted Human QA when the product artifact is unchanged.
+
+If a usage, session, or interaction limit interrupts observation of a long-running validation or other process, first determine on resume whether the same underlying process is still alive or already completed. Its result remains usable only when it continued against the same immutable product and test state. If it terminated and cannot legitimately continue, never run only the remainder and combine partial results; restart a formal Full regression over the entire inventory in one new process. Leave a checkpoint identifying the candidate or artifact and target, relevant SHA, formal inventory, completed tests and PASS/FAIL/SKIP counts, and whether product or test state changed.
 
 ## Human QA and unresolved issues
 
@@ -77,6 +83,8 @@ An unresolved issue may proceed only when usability, impact or workaround, and t
 ## Development and release roles
 
 Development produces a validated release candidate. Release accepts that candidate and normally performs only formalization, RC-to-formal comparison, representative verification, release records, Git commit/tag/push, distribution or Pages entry updates, and final verification.
+
+Do not mark a PBL `Released` merely because a release candidate is validated or release work is pending. Normally mark it Released only after the applicable formal artifact, release commit and tag, authoritative remote push, required fixed-entry or Pages update, and final release verification are complete. After formal closure, synchronize the durable backlog and release record with the new product and schema baseline, Released PBLs, resolved follow-ups, remaining Known Issues and Deferred Follow-ups, formal validation result, and release commit or tag as appropriate. Preserve the historical record of Deferred work and Known Issues after resolution.
 
 If release work requires a product change:
 
