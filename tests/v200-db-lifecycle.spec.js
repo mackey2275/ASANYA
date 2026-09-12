@@ -3,7 +3,7 @@ const {installFsAccessMock}=require('./helpers/fs-access-mock');
 const {APP}=require('./helpers/app-target');
 let currentSchema='';
 function schemaAtLeast(minimum){const parts=value=>String(value).split('.').map(Number),[major=0,minor=0]=parts(currentSchema),[minMajor=0,minMinor=0]=parts(minimum);return major>minMajor||(major===minMajor&&minor>=minMinor)}
-const currentDb=items=>({schema_version:currentSchema,...(schemaAtLeast('2.2')?{workspace_info_markdown:''}:{}),items});
+const currentDb=items=>({schema_version:currentSchema,...(schemaAtLeast('2.2')?{workspace_info_markdown:''}:{}),items,...(schemaAtLeast('3.2')?{snapshots:[]}:{})});
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',...(schemaAtLeast('2.5')?{impact_level:0}:{impact:''}),title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 const json=items=>JSON.stringify(currentDb(items));
 async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(async()=>{localStorage.clear();if(indexedDB.databases)for(const db of await indexedDB.databases())indexedDB.deleteDatabase(db.name)});await page.reload();currentSchema=await page.evaluate(()=>CURRENT_SCHEMA_VERSION);await expect(page.locator('#dbStartScreen')).toBeVisible()}

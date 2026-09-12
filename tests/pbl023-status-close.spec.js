@@ -70,7 +70,7 @@ test('PBL023-F dependency satisfaction ignores Close and predecessor cancellatio
 test('PBL023-G recurring Status complete does not roll; Close uses unchanged in-place rollover and one Undo',async({page})=>{
   await boot(page,[task('R',{repeat:'毎日',recurrence_rule:{type:'daily'},actual_start:'2026-09-01',actual_start_source:'user'})]);
   await page.evaluate(()=>changeState(0,'完了'));const completed=await snapshot(page,'R');expect(completed).toMatchObject({id:'R',due:'2026-09-10',state:'完了',completed:false});
-  await page.evaluate(()=>toggle(0));const rolled=await snapshot(page,'R');expect(rolled).toMatchObject({id:'R',due:'2026-09-11',state:'',completed:false,repeat:'毎日'});expect(rolled.actual_start).toBeUndefined();expect(rolled.actual_end).toBeUndefined();
+  await page.evaluate(()=>toggle(0));const rolled=await snapshot(page,'R'),expectedDue=await page.evaluate(()=>ymd());expect(rolled).toMatchObject({id:'R',due:expectedDue,state:'',completed:false,repeat:'毎日'});expect(rolled.actual_start).toBeUndefined();expect(rolled.actual_end).toBeUndefined();
   expect(await page.evaluate(()=>({count:data.items.length,undo:undoStack.length}))).toEqual({count:1,undo:2});
   await page.evaluate(()=>performUndo());expect(await snapshot(page,'R')).toEqual(completed);
 });

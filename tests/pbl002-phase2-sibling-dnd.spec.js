@@ -4,7 +4,7 @@ const {APP}=require('./helpers/app-target');
 function task(id,extra={}){return{id,parentId:'',title:id,state:'',owner:'',due:'2026-08-20',planned_duration_days:1,summary:'',repeat:'',completed:false,dependencies:[],sortOrder:1000,...extra}}
 async function boot(page,items,mode='personal',projectView='list'){
   await page.evaluate(()=>{if(typeof dirty!=='undefined')dirty=false}).catch(()=>{});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await page.evaluate(({items,mode,projectView})=>{applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'Phase 2 workspace',items},'PBL2','pbl2.json',null,{remember:false,writePermissionGranted:false});setView('all');setMode(mode);if(mode==='team')setProjectView(projectView);clearUndoHistory('pbl2')},{items,mode,projectView});
+  await page.evaluate(async({items,mode,projectView})=>{await applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'Phase 2 workspace',items,...(CURRENT_SCHEMA_VERSION==='3.2'?{snapshots:[]}:{})},'PBL2','pbl2.json',null,{remember:false,writePermissionGranted:false});setView('all');setMode(mode);if(mode==='team')setProjectView(projectView);clearUndoHistory('pbl2')},{items,mode,projectView});
 }
 async function order(page,parentId='',mode='personal'){
   return page.evaluate(({parentId,mode})=>{const sample=data.items.find(x=>(x.parentId||'')===parentId),group=sample?moveGroup(data.items.indexOf(sample)):[];return group.map(p=>p.x.id)},{parentId,mode});
@@ -74,7 +74,7 @@ test('PBL2-DND-06 Project effective-start scope and List/Gantt shared order',asy
 
 test('PBL2-DND-07 persisted sort order keeps Schema, hierarchy, and workspace information',async({page})=>{
   await boot(page,[task('P'),task('A',{parentId:'P',sortOrder:1000}),task('B',{parentId:'P',sortOrder:2000})]);await dragAfter(page,'A','B');
-  const {json,expectedSchema}=await page.evaluate(()=>({json:persistableData(),expectedSchema:CURRENT_SCHEMA_VERSION}));expect(json.schema_version).toBe(expectedSchema);await page.evaluate(json=>applyJsonObject(json,'Reload','reload.json',null,{remember:false,writePermissionGranted:false}),json);
+  const {json,expectedSchema}=await page.evaluate(()=>({json:persistableData(),expectedSchema:CURRENT_SCHEMA_VERSION}));expect(json.schema_version).toBe(expectedSchema);await page.evaluate(async json=>await applyJsonObject(json,'Reload','reload.json',null,{remember:false,writePermissionGranted:false}),json);
   expect(await page.evaluate(()=>({schema:data.schema_version,current:CURRENT_SCHEMA_VERSION,workspace:data.workspace_info_markdown,parentA:itemById('A').parentId,parentB:itemById('B').parentId,order:moveGroup(data.items.indexOf(itemById('A'))).map(p=>p.x.id)}))).toEqual({schema:expectedSchema,current:expectedSchema,workspace:'Phase 2 workspace',parentA:'P',parentB:'P',order:['B','A']});
 });
 

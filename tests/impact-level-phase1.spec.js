@@ -103,7 +103,7 @@ test('IMPACT-COMPAT-02 ASANA import boundary maps legacy values through the comm
 });
 
 test('IMPACT-DEFER-01 Task Detail remains unchanged and has no Impact editor',async({page})=>{
-  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=TARGET_SCHEMA_VERSION==='3.1'||APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.includes('v270')||APP.includes('pbl034')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
+  await apply(page,'2.5',[{id:'T',title:'T',impact_level:2}]);await page.locator('#row_T .taskDetailOpenBtn').click();await expect(page.locator('#taskDetailPane')).toBeVisible();const phase2=['3.1','3.2'].includes(TARGET_SCHEMA_VERSION)||APP.includes('phase2')||APP.includes('priority_width_followup')||APP.includes('pbl024_025')||APP.includes('v260')||APP.includes('v270')||APP.includes('pbl034')||APP.endsWith('/asanya_task_manager_v250.html');await expect(page.locator('#taskDetailPane').getByText('影響度',{exact:true})).toHaveCount(phase2?1:0);await expect(page.locator('#taskDetailPane .impactStars')).toHaveCount(phase2?1:0);
 });
 
 test('IMPACT-COPY-01 ordinary copy serializes Schema 2.5 without mutating old primary',async({page})=>{

@@ -3,7 +3,7 @@ const { installFsAccessMock } = require('./helpers/fs-access-mock');
 
 const {APP:app,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
 const currentFixtureSchema=TARGET_SCHEMA_VERSION||(app.includes('pbl034')?'3.1':(app.includes('pbl022')||app.includes('pbl033'))?'3.0':(app.includes('v250')||app.includes('v260')||app.includes('v270'))?'2.5':'2.0');
-const json = (items, schema=currentFixtureSchema) => JSON.stringify({ schema_version:schema, ...((schema==='2.5'||schema==='3.0'||schema==='3.1')?{workspace_info_markdown:''}:{}), items });
+const json = (items, schema=currentFixtureSchema) => JSON.stringify({ schema_version:schema, ...((schema==='2.5'||schema==='3.0'||schema==='3.1'||schema==='3.2')?{workspace_info_markdown:''}:{}), items, ...(schema==='3.2'?{snapshots:[]}:{}) });
 const task = (id, title=id, extra={}) => ({ id, parentId:'', state:'', title, completed:false, due:'', sortOrder:1000, dependencies:[], ...extra });
 
 async function boot(page) {
@@ -65,7 +65,7 @@ test('SAVE-01, SAVE-02: 2秒後の自動保存と再読込後の永続化', asyn
 
 test('SAVE-05: 未保存変更と外部更新の競合で自動保存を停止', async ({page}) => {
   await makeFile(page,'db','conflict.json',json([task('t1','元データ')])); await openDb(page,'db');
-  await page.evaluate(() => { chg(0,'title','自分の未保存変更'); __fsMock.mutate('db', JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[{id:'external',title:'外部更新',impact_level:0}]})); });
+  await page.evaluate(() => { chg(0,'title','自分の未保存変更'); __fsMock.mutate('db', JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[{id:'external',title:'外部更新',impact_level:0}],snapshots:[]})); });
   expect(await page.evaluate(() => checkExternalUpdate())).toBeTruthy();
   expect(await page.evaluate(() => ({conflictDetected,dirty,saveState}))).toEqual({conflictDetected:true,dirty:true,saveState:'conflict'});
   await expect(page.locator('.externalAlert')).toContainText('自動保存は停止');
@@ -74,7 +74,7 @@ test('SAVE-05: 未保存変更と外部更新の競合で自動保存を停止',
 
 test('SAVE-06: 外部更新だけの状態から最新DBを安全に再読込', async ({page}) => {
   await makeFile(page,'db','external-only.json',json([task('before','更新前')])); await openDb(page,'db');
-  await page.evaluate(() => __fsMock.mutate('db', JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[{id:'after',parentId:'',state:'',title:'外部更新後',impact_level:0,completed:false,due:'',sortOrder:1000,dependencies:[]}]})));
+  await page.evaluate(() => __fsMock.mutate('db', JSON.stringify({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[{id:'after',parentId:'',state:'',title:'外部更新後',impact_level:0,completed:false,due:'',sortOrder:1000,dependencies:[]}],snapshots:[]})));
   expect(await page.evaluate(() => checkExternalUpdate())).toBeTruthy();
   expect(await page.evaluate(() => ({conflictDetected,dirty,saveState}))).toEqual({conflictDetected:true,dirty:false,saveState:'external'});
   await page.getByRole('button',{name:'最新DBを再読込'}).click();

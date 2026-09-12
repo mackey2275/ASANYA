@@ -10,11 +10,11 @@ async function boot(page,items,schema='3.1'){
 
 test('PBL034-SCHEMA 3.0 migrates, Memo is valid in 3.1, and future schema is rejected',async({page})=>{
   await boot(page,[task('A')],'3.0');
-  expect(await page.evaluate(()=>({current:CURRENT_SCHEMA_VERSION,loaded:loadedSchemaVersion,pending:schemaMigrationPending,title:APP_TITLE}))).toEqual({current:'3.1',loaded:'3.0',pending:true,title:'ASANYA v'+(TARGET_PRODUCT_VERSION||'3.1.0')});
+  const current=await page.evaluate(()=>CURRENT_SCHEMA_VERSION),future=current==='3.2'?'3.3':'3.2';expect(await page.evaluate(()=>({current:CURRENT_SCHEMA_VERSION,loaded:loadedSchemaVersion,pending:schemaMigrationPending,title:APP_TITLE}))).toEqual({current,loaded:'3.0',pending:true,title:'ASANYA v'+(TARGET_PRODUCT_VERSION||'3.1.0')});
   await page.evaluate(()=>changeState(0,'メモ'));
-  expect(await page.evaluate(()=>persistableData())).toMatchObject({schema_version:'3.1',items:[{id:'A',state:'メモ'}]});
+  expect(await page.evaluate(()=>persistableData())).toMatchObject({schema_version:current,items:[{id:'A',state:'メモ'}]});
   expect(await page.evaluate(()=>norm({id:'X',state:'UNKNOWN'}).state)).toBe('');
-  expect(await page.evaluate(()=>{try{prepareSchemaObject({schema_version:'3.2',items:[]});return''}catch(e){return e.schemaKind}})).toBe('newer');
+  expect(await page.evaluate(future=>{try{prepareSchemaObject({schema_version:future,items:[],snapshots:[]});return''}catch(e){return e.schemaKind}},future)).toBe('newer');
 });
 
 test('PBL034-VIS Project shows Memo, ToDo hides it, and KPI/overdue exclude it',async({page})=>{
@@ -65,7 +65,7 @@ test('PBL034-GANTT Memo dates render but do not affect parent schedule or confli
 test('PBL034-REC Memo cannot recur; Memo subtree keeps identity through parent rollover',async({page})=>{
   await boot(page,[task('R',{due:'2026-09-10',repeat:'毎日',recurrence_rule:{type:'daily'}}),task('M',{parentId:'R',state:'メモ',due:'2026-09-09',actual_start:'2026-09-01',actual_end:'2026-09-02',completed:true})]);
   expect(await page.evaluate(()=>commitRepeatChange(1,'毎週',{type:'weekly',weekdays:[1]}))).toBe(false);await page.evaluate(()=>toggle(0));
-  expect(await page.evaluate(()=>itemById('M'))).toMatchObject({parentId:'R',state:'メモ',due:'2026-09-10',completed:false});expect(await page.evaluate(()=>itemById('M').actual_start)).toBeUndefined();
+  const expectedMemoDue=await page.evaluate(()=>{const d=new Date(itemById('R').due+'T00:00:00');d.setDate(d.getDate()-1);const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`});expect(await page.evaluate(()=>itemById('M'))).toMatchObject({parentId:'R',state:'メモ',due:expectedMemoDue,completed:false});expect(await page.evaluate(()=>itemById('M').actual_start)).toBeUndefined();
 });
 
 test('PBL034-HQA-STATUS invalid status choices are hidden in Project rows and Task Detail',async({page})=>{

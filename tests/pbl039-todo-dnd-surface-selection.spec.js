@@ -6,7 +6,7 @@ function task(id,extra={}){return{id,parentId:'',title:id,state:'',owner:'',due:
 async function boot(page,items,display='todo-tree',view='all'){
   await page.setViewportSize({width:1280,height:720});
   await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await page.evaluate(({items,display,view})=>{applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'PBL-039',items},'PBL-039','pbl039.json',null,{remember:false,writePermissionGranted:false});setView(view);setDisplayMode(display);clearUndoHistory('pbl039');dirty=false;saveState='saved'},{items,display,view});
+  await page.evaluate(async({items,display,view})=>{await applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'PBL-039',items,snapshots:[]},'PBL-039','pbl039.json',null,{remember:false,writePermissionGranted:false});setView(view);setDisplayMode(display);clearUndoHistory('pbl039');dirty=false;saveState='saved'},{items,display,view});
 }
 
 async function projectThenTodo(page,display,view='all'){
@@ -79,9 +79,9 @@ test('PBL039-07 hidden completed sibling stays in the group without owning ToDo 
 test('PBL039-08 DB A to B to A keeps the current ToDo surface authoritative',async({page})=>{
   const dbA=[task('A',{sortOrder:1000}),task('B',{sortOrder:2000})],dbB=[task('X',{sortOrder:1000}),task('Y',{sortOrder:2000})];
   await boot(page,dbA);await projectThenTodo(page,'todo-tree');
-  await page.evaluate(items=>applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,items},'DB B','b.json',null,{remember:false,writePermissionGranted:false}),dbB);
+  await page.evaluate(async items=>await applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,items,snapshots:[]},'DB B','b.json',null,{remember:false,writePermissionGranted:false}),dbB);
   await expect(todoRow(page,'X')).toBeVisible();
-  await page.evaluate(items=>{applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,items},'DB A','a.json',null,{remember:false,writePermissionGranted:false});clearUndoHistory('pbl039-db-switch')},dbA);
+  await page.evaluate(async items=>{await applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,items,snapshots:[]},'DB A','a.json',null,{remember:false,writePermissionGranted:false});clearUndoHistory('pbl039-db-switch')},dbA);
   expect(await page.evaluate(()=>({stale:!!document.querySelector('#ganttView .ganttRow[data-task-id="A"]'),rendered:pbl2RenderedRow('A')?.id}))).toEqual({stale:true,rendered:'row_A'});
   await drag(page,'A','B');expect(await groupOrder(page,'A')).toEqual(['B','A']);
 });

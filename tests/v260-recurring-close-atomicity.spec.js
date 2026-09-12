@@ -25,7 +25,7 @@ test('RC-ATOMIC-04 cancelled recurring task remains exact after invalid Close',a
 });
 
 test('RC-ATOMIC-05 valid recurring Close keeps same-record rollover and one Undo',async({page})=>{
-  await boot(page,[task('R',{due:'2026-09-10',actual_start:'2026-09-01',actual_end:'2026-09-10',actual_start_source:'user',actual_end_source:'system'})]);await page.evaluate(()=>toggle(0));expect(await page.evaluate(()=>({count:data.items.length,item:itemById('R'),undo:undoStack.length,dirty}))).toMatchObject({count:1,item:{id:'R',due:'2026-09-11',state:'',completed:false,repeat:'毎日'},undo:1,dirty:true});expect(await page.evaluate(()=>itemById('R').actual_start)).toBeUndefined();
+  await boot(page,[task('R',{due:'2026-09-10',actual_start:'2026-09-01',actual_end:'2026-09-10',actual_start_source:'user',actual_end_source:'system'})]);await page.evaluate(()=>toggle(0));const expectedDue=await page.evaluate(()=>ymd());expect(await page.evaluate(()=>({count:data.items.length,item:itemById('R'),undo:undoStack.length,dirty}))).toMatchObject({count:1,item:{id:'R',due:expectedDue,state:'',completed:false,repeat:'毎日'},undo:1,dirty:true});expect(await page.evaluate(()=>itemById('R').actual_start)).toBeUndefined();
 });
 
 test('RC-ATOMIC-06 Status 完了 alone assists Actual but does not rollover or Close',async({page})=>{

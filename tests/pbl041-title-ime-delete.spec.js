@@ -5,7 +5,7 @@ const task=(id,extra={})=>({id,parentId:'',state:'未着手',impact_level:1,titl
 
 async function boot(page,mode='personal',extra={}){
   await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await page.evaluate(({mode,item})=>{applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[item]},'pbl041','pbl041.json',null,{remember:false,writePermissionGranted:false});setView('all');setMode(mode);selectTask('A');clearUndoHistory('pbl041');dirty=false},{mode,item:task('A',extra)});
+  await page.evaluate(async({mode,item})=>{await applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items:[item],...(CURRENT_SCHEMA_VERSION==='3.2'?{snapshots:[]}:{})},'pbl041','pbl041.json',null,{remember:false,writePermissionGranted:false});setView('all');setMode(mode);selectTask('A');clearUndoHistory('pbl041');dirty=false},{mode,item:task('A',extra)});
 }
 
 const title=(page,mode)=>page.locator(mode==='team'?'.ganttRow[data-task-id="A"] .titleText':'#row_A .titleText');
