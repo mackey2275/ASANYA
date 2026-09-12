@@ -16,6 +16,17 @@ This repository instruction defines how Codex should develop, validate, and rele
 
 This file governs working practices, not changing product behavior. Determine current behavior from the implementation, formal tests, approved specifications and PBL records, release notes, artifacts and hashes, and Git history as appropriate. If chat history is unavailable, reconstruct state from those records rather than inventing it.
 
+## Product Backlog Repository Management
+
+- The Git repository is the authoritative source for ASANYA Product Backlog records. ChatGPT PBL conversations remain the interface for discussion, refinement, prioritization, and management, but conversation state must not be the only durable record. Synchronize important PBL decisions and state changes to the repository.
+- Store each numbered PBI as one Markdown file under `pbl/items/`. The individual file is authoritative for that PBI; `pbl/README.md` is an index and summary view, not a second independent specification store. Keep the index and individual records consistent.
+- Assign a PBL ID only after the user explicitly agrees to create or promote the numbered PBI. Never reuse or renumber a historical PBL ID.
+- Store worthwhile observations, ideas, possible future PBIs, and unresolved items that have not been approved as numbered PBIs under `pbl/inbox/`. Keep them unnumbered until the user explicitly promotes them. When promoting one, preserve appropriate history and do not leave an accidental duplicate active inbox item.
+- README may summarize active, released, and unnumbered items, while specifications, decisions, status, evidence, history, Known Issues, and Follow-ups belong in the individual record.
+- Do not record `Released` for a Validated RC, completed implementation, completed testing, or release-pending state. Release closure must synchronize applicable PBI records and the index. Preserve Known Issues, Deferred and Resolved Follow-ups, previous titles, and significant decisions after their state changes.
+- If repository PBL records, conversation history, release notes, Git history, or formal release evidence disagree, identify the discrepancy rather than guessing. Prefer stronger formal Git and release evidence for release facts, preserve backlog-management decisions when no stronger evidence contradicts them, and ask the user when an actual product or backlog decision is required.
+- Maintain enough context and evidence in repository PBL records to reconstruct the backlog if conversation history becomes unavailable.
+
 ## Implementation principles
 
 - Preserve healthy existing behavior and real user data.
