@@ -1,13 +1,15 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_PRODUCT_VERSION}=require('./helpers/app-target');
+
+const CURRENT_PRODUCT_VERSION=TARGET_PRODUCT_VERSION||'3.2.0';
 
 test.setTimeout(30_000);
 const task=(id='T',extra={})=>({id,parentId:'',state:'',impact_level:0,title:id,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 const snap=(id,at=id)=>({snapshot_id:id,captured_at:at,product_version:'3.2.0',schema_version:'3.2',snapshot_format_version:'1.0',items:[task('H-'+id)]});
 const root=(snapshots=[],items=[task('LIVE')],schema='3.2')=>({schema_version:schema,workspace_info_markdown:'workspace',items,snapshots});
 
-async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await expect(page).toHaveTitle('ASANYA v3.2.0')}
+async function boot(page){await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await expect(page).toHaveTitle(`ASANYA v${CURRENT_PRODUCT_VERSION}`)}
 async function adopt(page,id,value,options={}){const text=JSON.stringify(value);await page.evaluate(async({id,text,options})=>{const handle=__fsMock.create(id,{name:options.name||id+'.json',text,writePermission:'granted',...options}),file=await handle.getFile();await applyJsonObject(JSON.parse(text),'phase2',file.name,handle,{remember:false,writePermissionGranted:true,fileText:text,fileModified:file.lastModified,fileSize:file.size})},{id,text,options});return text}
 async function create(page){await page.evaluate(()=>{window.__snapshotResult=createManualSnapshot()});return page.evaluate(()=>window.__snapshotResult)}
 test.beforeEach(async({page})=>boot(page));
@@ -18,7 +20,7 @@ test('PBL042-P2-01: button is beside location action and clean direct creation p
   const buttons=await page.locator('#dbStatus .dbMain button').allTextContents();expect(buttons.indexOf('スナップショット作成')).toBe(buttons.indexOf('保存場所を確認')+1);
   const undoBefore=await page.evaluate(()=>({undo:undoStack.length,redo:redoStack.length}));expect(await create(page)).toBe(true);
   const result=await page.evaluate(()=>({saved:JSON.parse(__fsMock.snapshot('primary').text),runtime:data.snapshots,dirty,auto:!!autoSaveTimer,undo:undoStack.length,redo:redoStack.length,toast:toast.textContent}));
-  expect(result.saved.snapshots).toHaveLength(1);const s=result.saved.snapshots[0];expect(s).toMatchObject({product_version:'3.2.0',schema_version:'3.2',snapshot_format_version:'1.0'});expect(s.snapshot_id).toMatch(/^snapshot-/);expect(new Date(s.captured_at).toISOString()).toBe(s.captured_at);expect(s.items[0]).not.toHaveProperty('runtimeLeak');expect(result.runtime).toEqual(result.saved.snapshots);expect({undo:result.undo,redo:result.redo}).toEqual(undoBefore);expect(result.dirty).toBe(false);expect(result.auto).toBe(false);expect(result.toast).toContain('スナップショットを作成しました');
+  expect(result.saved.snapshots).toHaveLength(1);const s=result.saved.snapshots[0];expect(s).toMatchObject({product_version:CURRENT_PRODUCT_VERSION,schema_version:'3.2',snapshot_format_version:'1.0'});expect(s.snapshot_id).toMatch(/^snapshot-/);expect(new Date(s.captured_at).toISOString()).toBe(s.captured_at);expect(s.items[0]).not.toHaveProperty('runtimeLeak');expect(result.runtime).toEqual(result.saved.snapshots);expect({undo:result.undo,redo:result.redo}).toEqual(undoBefore);expect(result.dirty).toBe(false);expect(result.auto).toBe(false);expect(result.toast).toContain('スナップショットを作成しました');
 });
 
 test('PBL042-P2-02: all safety gates expose a disabled reason and never force editor commit',async({page})=>{

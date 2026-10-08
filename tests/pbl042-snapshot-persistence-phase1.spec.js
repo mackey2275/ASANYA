@@ -1,6 +1,9 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_PRODUCT_VERSION,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+
+const CURRENT_PRODUCT_VERSION=TARGET_PRODUCT_VERSION||'3.2.0';
+const CURRENT_SCHEMA_VERSION_TARGET=TARGET_SCHEMA_VERSION||'3.2';
 
 test.setTimeout(30_000);
 
@@ -15,7 +18,7 @@ const root=(snapshots=[],items=[task('LIVE')])=>({schema_version:'3.2',workspace
 
 async function boot(page){
   await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
-  await expect(page).toHaveTitle('ASANYA v3.2.0');expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe('3.2');
+  await expect(page).toHaveTitle(`ASANYA v${CURRENT_PRODUCT_VERSION}`);expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(CURRENT_SCHEMA_VERSION_TARGET);
 }
 async function adopt(page,id,value,options={}){
   const text=JSON.stringify(value);

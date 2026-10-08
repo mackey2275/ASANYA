@@ -41,7 +41,7 @@ test('PBL038-CORE-05 task switching, same-task toggle, Memo, and view switching 
 });
 
 test('PBL038-RESPONSIVE-01 narrow disables drag and wide-narrow-wide restores the reclamped runtime offset',async({page})=>{
-  await boot(page);await dragHeader(page,-220);const wide=await paneBox(page);const offset=await page.evaluate(()=>pbl038TaskDetailOffsetX);await page.setViewportSize({width:760,height:720});const narrow=await paneBox(page);expect(await page.locator('#taskDetailPane').evaluate(el=>getComputedStyle(el).transform)).toBe('none');await dragHeader(page,-120);near((await paneBox(page)).x,narrow.x);expect(await page.evaluate(()=>pbl038TaskDetailOffsetX)).toBe(offset);await page.setViewportSize({width:1280,height:720});near((await paneBox(page)).x,wide.x,2);
+  await boot(page);await dragHeader(page,-220);const wide=await paneBox(page);const offset=await page.evaluate(()=>pbl038TaskDetailOffsetX);await page.setViewportSize({width:760,height:720});const narrow=await paneBox(page);expect(await page.locator('#taskDetailPane').evaluate(el=>getComputedStyle(el).transform)).toBe('none');await dragHeader(page,-120);near((await paneBox(page)).x,narrow.x);expect(await page.evaluate(()=>pbl038TaskDetailOffsetX)).toBe(offset);await page.setViewportSize({width:1280,height:720});await expect.poll(async()=>Math.abs((await paneBox(page)).x-wide.x)).toBeLessThanOrEqual(2);
 });
 
 test('PBL038-RESPONSIVE-02 resize reclamps and reload returns to the default right position',async({page})=>{

@@ -14,6 +14,10 @@
 
 | Status | 意味 |
 |---|---|
+| Validated RC | Focused・Relevant・Human QA・累積Full完了、Release待ち |
+| Validated pre-Full | Focused・Relevant・Human QA完了、累積Full待ち |
+| Human QA | 自動検証済み・実ブラウザ確認待ち |
+| In Development | 実装・検証中 |
 | Backlog | 要求は識別済みだが着手未定 |
 | Needs Discussion | 仕様・方式・境界の合意が必要 |
 | Hold | 意図的に保留 |
@@ -56,7 +60,7 @@
 | [PBL-029](items/PBL-029.md) | 検索ショートカットの簡略化＋ショートカットガイド同期 | UX / Keyboard | Released | — | v2.7.0 |
 | [PBL-030](items/PBL-030.md) | Due変更時のタスク移動と縦スクロールの連続化 | UX / Interaction | Released | — | v3.0.0 |
 | [PBL-031](items/PBL-031.md) | Due移動中のviewport同期追従 | UX / Interaction | Hold | Low | — |
-| [PBL-032](items/PBL-032.md) | 同時編集競合の検知・上書き防止 | Feature / Architecture | Backlog | Low | — |
+| [PBL-032](items/PBL-032.md) | 同時編集競合の検知・上書き防止 | Feature / Architecture | Validated RC | Low | — |
 | [PBL-033](items/PBL-033.md) | ToDoツリー階層の折りたたみ／展開 | Feature / UX | Released | — | v3.1.0 |
 | [PBL-034](items/PBL-034.md) | Projectステータス「メモ」の追加と非アクティブ参照item化 | Feature / UX / Data compatibility | Released | — | v3.1.0 |
 | [PBL-035](items/PBL-035.md) | Project新規Task入力をTitle→Dueへ簡略化 | UX | Released | — | v3.1.0 |
@@ -70,6 +74,7 @@
 | [PBL-043](items/PBL-043.md) | フロントエンドCommandとBackend DB操作の分離 | Architecture | Needs Discussion | Unspecified | — |
 | [PBL-044](items/PBL-044.md) | Offline Command Queue / Outbox | Architecture / Offline | Needs Discussion | Unspecified | — |
 | [PBL-045](items/PBL-045.md) | Backend Command実行とデータ競合通知 | Architecture / Backend | Needs Discussion | Unspecified | — |
+| [PBL-046](items/PBL-046.md) | 7日後以降の期限表示に曜日を追加 | UX / Visual | Validated RC | Unspecified | — |
 
 ## Architecture relationships
 

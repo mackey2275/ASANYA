@@ -1,13 +1,16 @@
 const {test,expect}=require('playwright/test');
 const {installFsAccessMock}=require('./helpers/fs-access-mock');
-const {APP}=require('./helpers/app-target');
+const {APP,TARGET_PRODUCT_VERSION,TARGET_SCHEMA_VERSION}=require('./helpers/app-target');
+
+const CURRENT_PRODUCT_VERSION=TARGET_PRODUCT_VERSION||'3.2.0';
+const CURRENT_SCHEMA_VERSION_TARGET=TARGET_SCHEMA_VERSION||'3.2';
 
 const task=(id,extra={})=>({id,parentId:'',state:'',impact_level:0,title:id,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 const snapshot=(id,at,items)=>({snapshot_id:id,captured_at:at,product_version:'3.2.0',schema_version:'3.2',snapshot_format_version:'1.0',items});
 const old=(items)=>snapshot('old','2026-09-10T00:00:00.000Z',items),newer=(items)=>snapshot('new','2026-09-11T00:00:00.000Z',items);
 const generate=(page,a,b,generatedAt='2026-09-11T12:34:56.000Z')=>page.evaluate(({a,b,generatedAt})=>buildSemanticDiff(a,b,{generatedAt}),{a,b,generatedAt});
 
-test.beforeEach(async({page})=>{await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await expect(page).toHaveTitle('ASANYA v3.2.0');expect(await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,version:SEMANTIC_DIFF_VERSION}))).toEqual({schema:'3.2',version:'0.1'})});
+test.beforeEach(async({page})=>{await installFsAccessMock(page);await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await expect(page).toHaveTitle(`ASANYA v${CURRENT_PRODUCT_VERSION}`);expect(await page.evaluate(()=>({schema:CURRENT_SCHEMA_VERSION,version:SEMANTIC_DIFF_VERSION}))).toEqual({schema:CURRENT_SCHEMA_VERSION_TARGET,version:'0.1'})});
 
 test('PBL042-P3-01 identical/add/delete/change mixed union has exact counts and task-id ordering',async({page})=>{
   const diff=await generate(page,old([task('z'),task('d'),task('c',{title:'before'})]),newer([task('z'),task('a'),task('c',{title:'after'})]));

@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const task=(id,title=id,extra={})=>({id,parentId:'',state:'',impact:'',title,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
-async function boot(page){await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
+async function boot(page){await page.clock.setFixedTime('2026-09-07T12:00:00+09:00');await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload()}
 async function setData(page,items){await page.evaluate(items=>applyJsonObject({schema_version:'1.8',items},'test','ux3.json',null,{remember:false,writePermissionGranted:false}),items)}
 async function show(page,items){await setData(page,items);await page.evaluate(()=>setMode('team'));await expect(page.locator('#ganttView')).toBeVisible()}
 async function drag(page,locator,days){await locator.scrollIntoViewIfNeeded();const b=await locator.boundingBox();if(!b)throw new Error('drag target missing');await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2+days*28,b.y+b.height/2,{steps:6});await page.mouse.up()}
@@ -53,5 +53,5 @@ test('UX4-TODAY-LINE-01: 今日線がtimeline全高を貫き横scroll・列幅�
 });
 
 test('UX3-LIST-DUE-01: ガント専用期限超過表示を重複せず期限列を縮小',async({page})=>{
-  await show(page,[task('l1','遅延1',{due:'2000-01-01'})]);await expect(page.locator('.ganttOverdueSummary')).toHaveCount(0);await page.evaluate(()=>setMode('team'));expect(await page.evaluate(()=>DEF.due)).toBe(88);await page.locator('#row_l1 .dueTxt').click();const layout=await page.locator('#row_l1 td').filter({has:page.locator('.dateEdit')}).evaluate(td=>{const input=td.querySelector('input[type=text]').getBoundingClientRect(),button=td.querySelector('.calBtn').getBoundingClientRect(),cell=td.getBoundingClientRect();return{inputWidth:input.width,inside:input.left>=cell.left&&button.right<=cell.right+1,buttonVisible:button.width>0&&button.height>0}});expect(layout.inputWidth).toBeLessThan(90);expect(layout.buttonVisible).toBe(true);expect(layout.inside).toBe(true);await page.locator('#row_l1 .calBtn').click();
+  await show(page,[task('l1','遅延1',{due:'2000-01-01'})]);await expect(page.locator('.ganttOverdueSummary')).toHaveCount(0);await page.evaluate(()=>setMode('team'));expect(await page.evaluate(()=>DEF.due)).toBe(104);await page.locator('#row_l1 .dueTxt').click();const layout=await page.locator('#row_l1 td').filter({has:page.locator('.dateEdit')}).evaluate(td=>{const input=td.querySelector('input[type=text]').getBoundingClientRect(),button=td.querySelector('.calBtn').getBoundingClientRect(),cell=td.getBoundingClientRect();return{inputWidth:input.width,inside:input.left>=cell.left&&button.right<=cell.right+1,buttonVisible:button.width>0&&button.height>0}});expect(layout.inputWidth).toBeLessThan(90);expect(layout.buttonVisible).toBe(true);expect(layout.inside).toBe(true);await page.locator('#row_l1 .calBtn').click();
 });

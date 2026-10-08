@@ -1,7 +1,7 @@
 const {test,expect}=require('playwright/test');
 const {APP}=require('./helpers/app-target');
 const task=(id,extra={})=>({id,parentId:'',state:'',impact:'',title:id,owner:'',due:'2026-08-20',planned_duration_days:2,summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
-async function boot(page,items){await page.setViewportSize({width:1200,height:650});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(items=>{applyJsonObject({schema_version:'2.0',items},'phase4-final','phase4-final.json',null,{remember:false,writePermissionGranted:false});setView('all');setMode('team');clearUndoHistory('phase4-final')},items)}
+async function boot(page,items){await page.clock.setFixedTime('2026-09-07T12:00:00+09:00');await page.setViewportSize({width:1200,height:650});await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();await page.evaluate(items=>{applyJsonObject({schema_version:'2.0',items},'phase4-final','phase4-final.json',null,{remember:false,writePermissionGranted:false});setView('all');setMode('team');clearUndoHistory('phase4-final')},items)}
 const row=(page,id)=>page.locator(`.ganttRow[data-task-id="${id}"]`);
 
 test('P4F-A1..A4 Project rollover FLIPは旧status/plan/actualを保持しcleanup後に次回表示',async({page})=>{

@@ -2,6 +2,7 @@ const {test,expect}=require('playwright/test');
 const APP='/asanya_task_manager_v270_pbl030_pbl027_pbl021_pbl022_dev.html';
 const task=(id,extra={})=>({id,parentId:'',state:'',impact_level:0,title:id,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function fresh(page,items=[],schema='3.0'){
+  await page.clock.setFixedTime('2026-09-07T12:00:00+09:00');
   await page.goto(APP);await page.evaluate(()=>localStorage.clear());await page.reload();
   await expect(page.locator('body')).not.toHaveClass(/dbBooting/);
   await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema,items},'pbl022','pbl022.json',null,{remember:false,writePermissionGranted:false}),{items,schema});
