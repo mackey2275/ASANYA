@@ -95,7 +95,8 @@ test('IMPACT-STAR-03 top-level and child draft commit numeric level only',async(
 });
 
 test('IMPACT-COMPAT-01 recurrence copies level, sorting unchanged, Copilot uses stars',async({page})=>{
-  await apply(page,'2.5',[{id:'R',title:'Repeat',impact_level:2,due:'2026-10-20',repeat:'毎日',completed:false,sortOrder:1000},{id:'B',title:'B',impact_level:3,due:'2026-10-21',sortOrder:2000}]);const before=await page.evaluate(()=>visible().map(x=>x.x.id));await page.evaluate(()=>toggle(data.items.findIndex(x=>x.id==='R')));const rolled=await page.evaluate(()=>itemById('R'));expect(rolled.impact_level).toBe(2);expect(rolled).not.toHaveProperty('impact');expect(rolled.due).toBe('2026-10-21');expect((await page.evaluate(()=>buildCopilotPrompt(itemById('B')))).match(/影響度: ★★★/)).toBeTruthy();expect(before).toEqual(['R','B']);
+  const dates=await page.evaluate(()=>({due:addDays(ymd(),1),next:addDays(ymd(),2),after:addDays(ymd(),3)}));
+  await apply(page,'2.5',[{id:'R',title:'Repeat',impact_level:2,due:dates.due,repeat:'毎日',completed:false,sortOrder:1000},{id:'B',title:'B',impact_level:3,due:dates.after,sortOrder:2000}]);const before=await page.evaluate(()=>visible().map(x=>x.x.id));await page.evaluate(()=>toggle(data.items.findIndex(x=>x.id==='R')));const rolled=await page.evaluate(()=>itemById('R'));expect(rolled.impact_level).toBe(2);expect(rolled).not.toHaveProperty('impact');expect(rolled.due).toBe(dates.next);expect((await page.evaluate(()=>buildCopilotPrompt(itemById('B')))).match(/影響度: ★★★/)).toBeTruthy();expect(before).toEqual(['R','B']);
 });
 
 test('IMPACT-COMPAT-02 ASANA import boundary maps legacy values through the common mapper',async({page})=>{
