@@ -75,7 +75,7 @@
 | [PBL-044](items/PBL-044.md) | Offline Command Queue / Outbox | Architecture / Offline | Needs Discussion | Unspecified | — |
 | [PBL-045](items/PBL-045.md) | Backend Command実行とデータ競合通知 | Architecture / Backend | Needs Discussion | Unspecified | — |
 | [PBL-046](items/PBL-046.md) | 7日後以降の期限表示に曜日を追加 | UX / Visual | Released | Unspecified | v3.2.1 |
-| [PBL-047](items/PBL-047.md) | Semantic Diffの外部AI分析用ファイル出力 | Feature / Data / UX | Validated RC | Unspecified | — |
+| [PBL-047](items/PBL-047.md) | Semantic Diffの外部AI分析用ファイル出力 | Feature / Data / UX | Released | Unspecified | v3.2.2 |
 
 ## Architecture relationships
 
