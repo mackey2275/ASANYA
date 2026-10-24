@@ -81,10 +81,10 @@ There are no differences in executable JavaScript behavior, functional CSS, even
 - Formal SHA-256: 60CFA1B3DB7E32C3604A9ECC4B114FF6F5D71DCA1BEE59959FF11956847514DD
 - Validated RC source: asanya_task_manager_v321_pbl047_dev.html
 - Validated RC SHA-256: 08AB89C64379E3AC5ECC6EDA5CAD83C84647A622D60B29C496A54386E23AEC1A
-- Release commit: the commit containing the formal artifact and this release record, with message Release ASANYA v3.2.2.
-- Release tag: annotated tag v3.2.2, attached to the formal release commit.
-- Pages entry commit: recorded by the post-release documentation closure after the Pages update.
-- Backlog closure commit: recorded by the post-release documentation closure after PBL-047 is marked Released.
-- Release status: Pending formal Git closure at the time this record enters the release commit.
+- Release commit: `21cdfc27fb6d35de378546a4461b4f977d7f6278`
+- Release tag: annotated tag `v3.2.2`, attached to the formal release commit.
+- Pages entry commit: `af199ec3416e1f900483c2119db418c9a6caf36e`
+- Backlog closure commit: `f63ee8539d29b200395b2ca6ddf1ee3ca4eaff14`
+- Release status: Released
 
-The v3.2.2 tag must remain attached to the formal release commit and must not move to the Pages, backlog, or documentation follow-up commits.
+The `v3.2.2` tag remains attached to the formal release commit and was not moved to the Pages, backlog, or documentation follow-up commits.

@@ -97,9 +97,10 @@ Executable JavaScript behavior、functional CSS、Schema、migration、persisten
 
 ## Git Release
 
-- Release commit: 正式artifactを含む Release ASANYA v3.2.2 commit
-- Release tag: v3.2.2
-- Pages commit: Pages更新後のdocumentation closureで記録
-- Backlog closure commit: PBL-047をReleasedへ同期後のdocumentation closureで記録
+- Release commit: `21cdfc27fb6d35de378546a4461b4f977d7f6278`
+- Release tag: `v3.2.2`
+- Pages commit: `af199ec3416e1f900483c2119db418c9a6caf36e`
+- Backlog closure commit: `f63ee8539d29b200395b2ca6ddf1ee3ca4eaff14`
+- Release status: **Released**
 
-v3.2.2 tagは正式release commitを指したまま維持し、後続commitへ移動しません。
+`v3.2.2` tagは正式release commitを指したままで、Pages、backlog、documentation follow-up commitへ移動していません。
