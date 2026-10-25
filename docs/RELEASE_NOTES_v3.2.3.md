@@ -90,10 +90,10 @@ Normalizing these three strings back to 3.2.2 produces an exact text and SHA-256
 - Formal SHA-256: `FB4391897768D57225DDE081C03F5FE2F6E1301FC6F70A44835973E5A81A7E13`
 - Validated RC source: `asanya_task_manager_v322_pbl048_dev.html`
 - Validated RC SHA-256: `AC54BE43974D3999048804778C10D1C7B39E16AA6C70A29320D45DCA14C7739E`
-- Release commit: the commit containing the formal artifact and this release record, with message `Release v3.2.3`.
-- Release tag: annotated tag `v3.2.3`, attached to the formal release commit.
-- Pages entry commit: recorded by the post-release documentation closure after the Pages update.
-- Backlog closure commit: recorded by the post-release documentation closure after PBL-048 is marked Released.
-- Release status: Pending formal Git closure at the time this record enters the release commit.
+- Release commit: `f3fa3709bb2add5158e1ed7abff77f5177e4332c` (`Release v3.2.3`).
+- Release tag: annotated tag `v3.2.3`; tag object `714a56efba6b4a4e05ae644d819ba3276c4cc130`; peeled target `f3fa3709bb2add5158e1ed7abff77f5177e4332c`.
+- Pages entry commit: `5d925ba3d03619c6a6f8904d97be1546893d1933`.
+- Backlog closure commit: `82483c97356f4a060e5729c7fb74a3d36fb4928a`.
+- Release status: Released.
 
 The `v3.2.3` tag must remain attached to the formal release commit and must not move to the Pages, backlog, or documentation follow-up commits.
