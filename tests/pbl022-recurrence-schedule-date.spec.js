@@ -1,5 +1,10 @@
 const {test,expect}=require('playwright/test');
-const APP='/asanya_task_manager_v270_pbl030_pbl027_pbl021_pbl022_dev.html';
+const APP=process.env.ASANYA_TEST_APP;
+const TARGET_SCHEMA_VERSION=process.env.ASANYA_TEST_SCHEMA_VERSION;
+if(!APP)throw new Error('ASANYA_TEST_APP must explicitly identify the candidate under test');
+if(!TARGET_SCHEMA_VERSION)throw new Error('ASANYA_TEST_SCHEMA_VERSION must explicitly identify the current candidate Schema');
+const [TARGET_SCHEMA_MAJOR,TARGET_SCHEMA_MINOR]=TARGET_SCHEMA_VERSION.split('.').map(Number);
+const FUTURE_SCHEMA_VERSION=`${TARGET_SCHEMA_MAJOR}.${TARGET_SCHEMA_MINOR+1}`;
 const task=(id,extra={})=>({id,parentId:'',state:'',impact_level:0,title:id,owner:'',due:'',summary:'',repeat:'',completed:false,source:'',asana_task_id:'',history:[],dependencies:[],sortOrder:1000,...extra});
 async function fresh(page,items=[],schema='3.0'){
   await page.clock.setFixedTime('2026-09-07T12:00:00+09:00');
@@ -8,9 +13,9 @@ async function fresh(page,items=[],schema='3.0'){
   await page.evaluate(({items,schema})=>applyJsonObject({schema_version:schema,items},'pbl022','pbl022.json',null,{remember:false,writePermissionGranted:false}),{items,schema});
 }
 
-test('PBL022-CORE-01 Schema 3.0 normalization and serialization preserve only valid recurring schedule dates',async({page})=>{
+test('PBL022-CORE-01 Schema 3.0 source normalization and current serialization preserve only valid recurring schedule dates',async({page})=>{
   await fresh(page,[task('R',{due:'2026-10-10',repeat:'毎日',recurrence_rule:{type:'daily'},recurrence_schedule_date:'2026-10-08'}),task('N',{due:'2026-10-10',recurrence_schedule_date:'2026-10-01'}),task('B',{repeat:'毎日',recurrence_rule:{type:'daily'},recurrence_schedule_date:'bad'})]);
-  expect(await page.evaluate(()=>({version:CURRENT_SCHEMA_VERSION,tasks:data.items.map(x=>({id:x.id,s:x.recurrence_schedule_date})),saved:persistableData()}))).toMatchObject({version:'3.0',tasks:[{id:'R',s:'2026-10-08'},{id:'N',s:undefined},{id:'B',s:undefined}],saved:{schema_version:'3.0'}});
+  expect(await page.evaluate(()=>({version:CURRENT_SCHEMA_VERSION,tasks:data.items.map(x=>({id:x.id,s:x.recurrence_schedule_date})),saved:persistableData()}))).toMatchObject({version:TARGET_SCHEMA_VERSION,tasks:[{id:'R',s:'2026-10-08'},{id:'N',s:undefined},{id:'B',s:undefined}],saved:{schema_version:TARGET_SCHEMA_VERSION}});
 });
 
 test('PBL022-CORE-02 first Due establishes schedule once; later edits and clearing preserve it',async({page})=>{
@@ -73,7 +78,7 @@ test('PBL022-UI-02 normal recurrence deviations use plain guidance without gener
   for(const repeat of ['毎日','毎週','毎月','隔月','毎年']){
     await fresh(page,[task('R',{due:'2026-10-10',repeat,recurrence_rule:null,recurrence_schedule_date:'2026-10-08'})]);
     await page.locator('#row_R .recurrenceSettings').click();
-    await expect(page.locator('.recurrenceBasis')).toContainText('今回の期限は 10/10 に変更されています。');
+    await expect(page.locator('.recurrenceBasis')).toContainText('今回の期限は 10/10 土 に変更されています。');
     await expect(page.locator('.recurrenceBasis')).toContainText('次回以降は設定した繰返し予定に戻ります。');
     await expect(page.getByText('繰返し基準日')).toHaveCount(0);
     await expect(page.getByText('現在の期限を繰返し基準にする')).toHaveCount(0);
@@ -85,7 +90,7 @@ test('PBL022-UI-02 normal recurrence deviations use plain guidance without gener
 test('PBL022-UI-03 biweekly deviation can re-anchor phase with one Undo and Redo',async({page})=>{
   await fresh(page,[task('R',{due:'2026-10-10',repeat:'隔週',recurrence_rule:{type:'biweekly'},recurrence_schedule_date:'2026-10-08'})]);
   await page.locator('#row_R .recurrenceSettings').click();
-  await expect(page.locator('.recurrenceBasis')).toContainText('今回の期限は 10/10 に変更されています。');
+  await expect(page.locator('.recurrenceBasis')).toContainText('今回の期限は 10/10 土 に変更されています。');
   await expect(page.locator('#recurrenceReanchor')).toHaveText('今回の期限から隔週で繰り返す');
   await page.locator('#recurrenceReanchor').focus();await expect(page.locator('#recurrenceReanchor')).toBeFocused();
   await page.locator('#recurrenceReanchor').press('Enter');
@@ -110,9 +115,9 @@ test('PBL022-UI-05 semantic recurrence change re-anchors while unchanged save do
 
 test('PBL022-SCHEMA-01 Schema 2.5 migration initializes schedule deterministically without dirty write',async({page})=>{
   await fresh(page,[task('D',{due:'2026-10-10',repeat:'毎日'}),task('N',{repeat:'毎日',sortOrder:2000}),task('X',{due:'2026-10-10',sortOrder:3000})],'2.5');
-  expect(await page.evaluate(()=>({loaded:loadedSchemaVersion,pending:schemaMigrationPending,dirty,items:data.items.map(x=>({id:x.id,s:x.recurrence_schedule_date})),saved:persistableData().schema_version}))).toEqual({loaded:'2.5',pending:true,dirty:false,items:[{id:'D',s:'2026-10-10'},{id:'N',s:undefined},{id:'X',s:undefined}],saved:'3.0'});
+  expect(await page.evaluate(()=>({loaded:loadedSchemaVersion,pending:schemaMigrationPending,dirty,items:data.items.map(x=>({id:x.id,s:x.recurrence_schedule_date})),saved:persistableData().schema_version}))).toEqual({loaded:'2.5',pending:true,dirty:false,items:[{id:'D',s:'2026-10-10'},{id:'N',s:undefined},{id:'X',s:undefined}],saved:TARGET_SCHEMA_VERSION});
 });
 
 test('PBL022-SCHEMA-02 unsupported gap and future schemas are rejected',async({page})=>{
-  await fresh(page);expect(await page.evaluate(()=>{const out={};for(const v of ['2.6','3.1'])try{prepareSchemaObject({schema_version:v,items:[]});out[v]='accepted'}catch(e){out[v]=e.schemaKind}return out})).toEqual({'2.6':'unsupported-gap','3.1':'newer'});
+  await fresh(page);expect(await page.evaluate(future=>{const out={};for(const v of ['2.6',future])try{prepareSchemaObject({schema_version:v,items:[]});out[v]='accepted'}catch(e){out[v]=e.schemaKind}return out},FUTURE_SCHEMA_VERSION)).toEqual({'2.6':'unsupported-gap',[FUTURE_SCHEMA_VERSION]:'newer'});
 });

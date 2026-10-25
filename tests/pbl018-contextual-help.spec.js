@@ -8,12 +8,13 @@ async function boot(page,displayMode='todo-tree',width=1280){
   await page.goto(APP);
   await page.evaluate(()=>localStorage.clear());
   await page.reload();
-  await page.evaluate(({items,displayMode})=>{applyJsonObject({schema_version:'3.0',workspace_info_markdown:'',items},'pbl018','pbl018.json',null,{remember:false,writePermissionGranted:false});setView('all');setDisplayMode(displayMode);clearUndoHistory('pbl018');dirty=false},{items:[task('ROOT'),task('CHILD','ROOT',2000),task('OTHER','',3000)],displayMode});
+  await page.evaluate(({items,displayMode})=>{applyJsonObject({schema_version:CURRENT_SCHEMA_VERSION,workspace_info_markdown:'',items,snapshots:[]},'pbl018','pbl018.json',null,{remember:false,writePermissionGranted:false});setView('all');setDisplayMode(displayMode);clearUndoHistory('pbl018');dirty=false},{items:[task('ROOT'),task('CHILD','ROOT',2000),task('OTHER','',3000)],displayMode});
 }
 
 test('PBL018-SCHEMA-01 visible and runtime current Schema are both the candidate Schema',async({page})=>{
   await page.goto(APP);
-  const expected=TARGET_SCHEMA_VERSION||(APP.includes('pbl034')?'3.1':'3.0');
+  expect(TARGET_SCHEMA_VERSION,'ASANYA_TEST_SCHEMA_VERSION must explicitly identify the current candidate').toBeTruthy();
+  const expected=TARGET_SCHEMA_VERSION;
   await expect(page.locator('#schemaMeta')).toHaveText('schema_version '+expected);
   expect(await page.evaluate(()=>CURRENT_SCHEMA_VERSION)).toBe(expected);
   expect(await page.evaluate(()=>serializeCurrentSchemaDatabase([]).schema_version)).toBe(expected);
@@ -28,7 +29,7 @@ test('PBL018-PLACEMENT-01 Help is the single far-right control in the ASANYA hea
 
 test('PBL018-TRIGGER-01 Help remains available in all four views and guide wording stays exact',async({page})=>{
   await boot(page);
-  const expected='ショートカット: T＝ToDo ツリー順　P＝Project 詳細　1/2＝同family内切替　S＝検索（Alt+Sも可）　Enter＝同階層に追加　Insert＝子を追加　Delete＝終了／再オープン　F2＝タイトル編集　D→E＝期限編集　D→0〜9＝今日〜9日後　Alt+T＝TOP';
+  const expected='ショートカット: T＝ToDo ツリー順　(ToDo時) 1/2＝ツリー順 / 日付順 切替　P＝Project 詳細　(Project時) 1/2＝詳細表示 / 簡易表示 切替　S＝検索（Alt+Sも可）　Enter＝同階層に追加　Insert＝子を追加　Delete＝終了／再オープン　F2＝タイトル編集　↑/↓＝前後のタスクへ移動　Ctrl+Z＝元に戻す　Ctrl+Y/Ctrl+Shift+Z＝やり直す　D→E＝期限編集　D→0〜9＝今日〜9日後　Alt+T＝TOP';
   for(const mode of ['todo-tree','todo-date','project-detail','project-simple']){
     await page.evaluate(mode=>setDisplayMode(mode),mode);
     await expect(page.locator('#helpTrigger')).toBeVisible();
@@ -50,18 +51,18 @@ test('PBL018-OPEN-02 outside click closes without forcing focus back to trigger'
 });
 
 test('PBL018-GUARD-01 app shortcuts are inert while Help is open and Tab remains available',async({page})=>{
-  await boot(page);await page.evaluate(()=>{selectTask('ROOT');window.scrollTo(0,500)});const baseline=await page.evaluate(()=>({mode:displayModeKey(),count:data.items.length,done:itemById('ROOT').completed,draft:draftTaskId,search:getComputedStyle(taskSearchPopup).display,scroll:scrollY}));
-  for(const key of ['t','p','1','2','s','Enter','Insert','Delete','F2','d','e','0','Alt+s','Alt+t']){await page.locator('#helpTrigger').click();await page.keyboard.press(key);expect(await page.locator('#helpPopover').isVisible()).toBe(true);await page.locator('#helpTrigger').click()}
-  const after=await page.evaluate(()=>({mode:displayModeKey(),count:data.items.length,done:itemById('ROOT').completed,draft:draftTaskId,search:getComputedStyle(taskSearchPopup).display,scroll:scrollY}));expect(after).toEqual(baseline);
+  await boot(page);await page.evaluate(()=>{selectTask('ROOT');window.scrollTo(0,500)});const baseline=await page.evaluate(()=>({mode:displayModeKey(),selected:selectedTaskId,count:data.items.length,done:itemById('ROOT').completed,draft:draftTaskId,search:getComputedStyle(taskSearchPopup).display,scroll:scrollY,undo:undoStack.length,redo:redoStack.length}));
+  for(const key of ['t','p','1','2','s','Enter','Insert','Delete','F2','ArrowUp','ArrowDown','Control+z','Control+y','Control+Shift+z','d','e','0','Alt+s','Alt+t']){await page.locator('#helpTrigger').click();await page.keyboard.press(key);expect(await page.locator('#helpPopover').isVisible()).toBe(true);await page.locator('#helpTrigger').click()}
+  const after=await page.evaluate(()=>({mode:displayModeKey(),selected:selectedTaskId,count:data.items.length,done:itemById('ROOT').completed,draft:draftTaskId,search:getComputedStyle(taskSearchPopup).display,scroll:scrollY,undo:undoStack.length,redo:redoStack.length}));expect(after).toEqual(baseline);
   await page.locator('#helpTrigger').click();await page.keyboard.press('Tab');await expect(page.locator('#helpPopover')).toBeVisible();
 });
 
-test('PBL018-CONTEXT-01 ToDo shows Common, ToDo and Shortcuts only',async({page})=>{
-  await boot(page,'todo-tree');await page.locator('#helpTrigger').click();await expect(page.locator('[data-help-section="common"]')).toBeVisible();await expect(page.locator('[data-help-section="todo"]')).toBeVisible();await expect(page.locator('[data-help-section="project"]')).toHaveCount(0);await expect(page.locator('[data-help-section="shortcuts"]')).toBeVisible();
+test('PBL018-CONTEXT-01 ToDo shows the unified Common, ToDo, Project and Shortcuts Help',async({page})=>{
+  await boot(page,'todo-tree');await page.locator('#helpTrigger').click();for(const section of ['common','todo','project','shortcuts'])await expect(page.locator(`[data-help-section="${section}"]`)).toBeVisible();
 });
 
-test('PBL018-CONTEXT-02 Project shows Common, Project and Shortcuts and preserves Task Detail',async({page})=>{
-  await boot(page,'project-detail');await page.locator('#ganttView .ganttRow[data-task-id="ROOT"] .taskDetailOpenBtn').click();const detailId=await page.evaluate(()=>taskDetailPaneTaskId);await page.locator('#helpTrigger').click();await expect(page.locator('[data-help-section="project"]')).toBeVisible();await expect(page.locator('[data-help-section="todo"]')).toHaveCount(0);await expect(page.locator('#taskDetailPane')).toBeVisible();expect(await page.evaluate(()=>taskDetailPaneTaskId)).toBe(detailId);expect(Number(await page.locator('#helpPopover').evaluate(el=>getComputedStyle(el).zIndex))).toBeGreaterThan(Number(await page.locator('#taskDetailPane').evaluate(el=>getComputedStyle(el).zIndex)));
+test('PBL018-CONTEXT-02 Project shows the same unified Help and preserves Task Detail',async({page})=>{
+  await boot(page,'project-detail');await page.locator('#ganttView .ganttRow[data-task-id="ROOT"] .taskDetailOpenBtn').click();const detailId=await page.evaluate(()=>taskDetailPaneTaskId);await page.locator('#helpTrigger').click();for(const section of ['common','todo','project','shortcuts'])await expect(page.locator(`[data-help-section="${section}"]`)).toBeVisible();await expect(page.locator('#taskDetailPane')).toBeVisible();expect(await page.evaluate(()=>taskDetailPaneTaskId)).toBe(detailId);expect(Number(await page.locator('#helpPopover').evaluate(el=>getComputedStyle(el).zIndex))).toBeGreaterThan(Number(await page.locator('#taskDetailPane').evaluate(el=>getComputedStyle(el).zIndex)));
 });
 
 test('PBL018-CONTENT-01 approved concepts are present and internal recurrence terms are absent',async({page})=>{
