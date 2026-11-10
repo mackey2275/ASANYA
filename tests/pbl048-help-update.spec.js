@@ -12,7 +12,7 @@ async function boot(page,displayMode='todo-tree',items=[task('ROOT'),task('CHILD
   await page.locator('#helpTrigger').click();
 }
 
-async function sectionText(page,key){return page.locator(`[data-help-section="${key}"]`).innerText()}
+async function sectionText(page,key){await page.locator(`[data-help-nav="${key}"]`).click();return page.locator(`[data-help-section="${key}"]`).innerText()}
 
 test('PBL048-IDENTITY-01 explicit target is current v3.2.3 / Schema 3.2',async({page})=>{
   expect(TARGET_PRODUCT_VERSION,'ASANYA_TEST_PRODUCT_VERSION must explicitly identify the current formal artifact').toBe('3.2.3');
@@ -24,26 +24,33 @@ test('PBL048-IDENTITY-01 explicit target is current v3.2.3 / Schema 3.2',async({
   expect(await page.evaluate(()=>({title:APP_TITLE,schema:CURRENT_SCHEMA_VERSION,snapshot:buildManualSnapshot('2026-10-25T00:00:00.000Z').product_version}))).toEqual({title:'ASANYA v3.2.3',schema:'3.2',snapshot:'3.2.3'});
 });
 
-test('PBL048-HELP-01 Snapshot, comparison, Semantic Diff and external-AI handoff use the approved conceptual model',async({page})=>{
-  await boot(page);const common=await sectionText(page,'common');
-  for(const text of ['作成時点で確定','現在開いているDB内','作成後の編集には追従せず','最大5件','保存済みの2件','選んだ順番ではなく保存時刻','古い方をBefore','新しい方をAfter','読取専用','現在のタスクや保存済みスナップショットを変更しません','文字列を行単位で比べるものではありません','タスクIDを基準','追加・削除・終了／再オープン','階層','期限／計画／実績','依存関係','繰返し','AIに渡す内容','差分JSON','自由に編集','現在表示中の編集内容をそのままコピー','AI分析用ファイルを保存','外部AIへ添付','所定の分析指示','完全なSemantic Diff','画面上の編集内容は保存ファイルには反映されません','編集内容をAIへ渡したい場合','表示中の内容をコピー'])expect(common).toContain(text);
-  expect(common).not.toContain('export元');
+test('PBL048-HELP-01 Snapshot, Semantic Diff, editable display and canonical AI file are clearly distinguished',async({page})=>{
+  await boot(page);const snapshot=await sectionText(page,'diff');
+  for(const text of ['作成時点のタスク状態','作成後の変更には追従しません','各DBに最大5件','保存済みSnapshotを2件','保存時刻の古い方','新しい方をAfter','読取専用','タスクや保存済みSnapshotは変更しません','タスクIDを基準','追加・削除・状態','階層','期限／計画／実績','依存関係','繰返し','AI分析用Markdownを使う','AI分析用ファイルを保存','ASANYAの分析指示','完全なSemantic Diff','画面上の編集内容はファイルには入りません','画面からコピーしてください','保存したMarkdown','CopilotなどのAIサービス'])expect(snapshot).toContain(text);
+  for(const text of ['Snapshotを作る','2つのSnapshotを比べる','AI分析用Markdownを使う','CopilotなどのAIサービス','保存したMarkdown','会話に添付'])expect(snapshot).toContain(text);
+  for(const text of ['Dueが後ろへ動いただけでは','実質的な期限延期','期限超過','Humanへの確認','意味が未解決','After Snapshot時点','Snapshot作成時のタイムゾーン','期限の延期'])expect(snapshot).not.toContain(text);
+  expect(snapshot).not.toContain('export元');
+});
+
+test('PBL048-HELP-08 Task creation Help starts with the real top-row workflow and preserves editing and hierarchy guidance',async({page})=>{
+  await boot(page);const text=await sectionText(page,'task');expect(text.indexOf('新しいタスクを追加する')).toBeLessThan(text.indexOf('既存のタスクを編集する'));for(const phrase of ['一覧の一番上','ここに書くと新規追加','タイトルを入力','Enterを押すと期限欄へ移動','入力行の外へ移動すると登録','期限欄でEnter','登録用の別ボタンや確認画面はありません','既存のタスクを編集する','入力を確定すると画面に反映','親にするタスクの「＋」','1つ下の階層に追加','親を共有する別のタスク','子タスクの下にさらに子'])expect(text).toContain(phrase);
 });
 
 test('PBL048-HELP-02 external update explains stale display, no presence/merge/reload, and local-edit protection',async({page})=>{
-  await boot(page);const common=await sectionText(page,'common');
-  for(const text of ['前回読み込んだ後','元のDBファイルが変更','他の人が現在入力中','検知する機能ではありません','最新状態より古い可能性','自動では統合せず','勝手に再読込もしません','現在表示を確認し続けられます','自動保存されません','最新の状態に更新','元のDBファイルを読み直します','未保存の変更や編集中の入力','破棄する前に確認','キャンセルすれば現在の内容と通知は残り','この画面の未保存内容を破棄'])expect(common).toContain(text);
+  await boot(page);const common=await sectionText(page,'data');
+  for(const text of ['DB読込','既存のJSON DB','新しいDBを始める','アクセス許可が必要','未保存の変更がある状態で別のDBへ切り替える'])expect(common).toContain(text);
+  for(const text of ['前回読み込んだ後','元のDBファイルが変わった','他の人が現在入力中','示すものではありません','最新状態より古い可能性','自動では統合されず','勝手に再読込もしません','競合した未保存変更','元のファイルへ自動保存されません','最新の状態に更新','元のDBファイルを読み直します','未保存の変更や編集中の入力','破棄する前に確認','キャンセルすれば現在の内容と通知は残ります','この画面の未保存内容を破棄'])expect(common).toContain(text);
   expect(common).not.toContain('localの未保存内容');
 });
 
 test('PBL048-HELP-03 unified Help keeps detailed Memo semantics in the Project section',async({page})=>{
-  await boot(page,'todo-tree');const common=await sectionText(page,'common'),todo=await sectionText(page,'todo'),project=await sectionText(page,'project');expect(common).not.toContain('「メモ」はProject階層');expect(todo).not.toContain('「メモ」はProject階層');
+  await boot(page,'todo-tree');const taskHelp=await sectionText(page,'task'),todo=await sectionText(page,'todo'),project=await sectionText(page,'project');expect(taskHelp).not.toContain('「メモ」はProject階層');expect(todo).not.toContain('「メモ」はProject階層');
   for(const text of ['Project階層','参考情報や見出し','現在の作業対象として扱わない','Projectには表示','ToDoには表示されず','未終了件数','期限超過','情報は保持・表示','親子の日程集計','計画上の矛盾判定','依存関係の前工程／後工程','繰返しには設定できません','通常タスクの子孫','子を持てます','配下もメモ','メモの下に通常タスクを追加・移動'])expect(project).toContain(text);
   expect(project).not.toContain('activeな作業対象');
 });
 
 test('PBL048-HELP-04 recurrence keeps Due/schedule/catch-up guidance and adds same-record checklist rollover',async({page})=>{
-  await boot(page);const common=await sectionText(page,'common');
+  await boot(page);const common=await sectionText(page,'todo');
   for(const text of ['今回の期限だけを変更','次回以降の繰返し予定は移動しません','今日以降の最初の予定','別の新規タスクを作るのではなく','同じタスクと配下のチェックリスト','未終了・状態未設定','実績開始日・終了日は消去','今回の繰返し予定から次回予定までの日数分','期限なしのまま','タイトル・概要・担当・計画日数・階層','チェックリスト内の依存関係は保持','階層の内外をまたぐ依存関係','入れ子の繰返しは設定できません'])expect(common).toContain(text);
 });
 
@@ -66,8 +73,18 @@ test('PBL048-HELP-05 unified Help keeps hierarchy collapse guidance in both labe
   await boot(page,'todo-tree');const todo=await sectionText(page,'todo'),project=await sectionText(page,'project');expect(todo).toContain('▶ / ▼');expect(todo).toContain('展開／折りたたみ');expect(project).toContain('▶ / ▼');expect(project).toContain('親タスクの子・孫タスクを展開／折りたたみ');
 });
 
-test('PBL048-HELP-06 all four view modes render exactly the same unified Help sections and content',async({page})=>{
-  let expected='';for(const mode of ['todo-tree','todo-date','project-detail','project-simple']){await boot(page,mode);expect(await page.locator('.helpSection').evaluateAll(nodes=>nodes.map(node=>node.dataset.helpSection))).toEqual(['common','todo','project','shortcuts']);const content=await page.locator('#helpPopover').innerText();if(!expected)expected=content;else expect(content).toBe(expected)}
+test('PBL048-HELP-06 all four view modes render the same landing, category navigation and selected Help content',async({page})=>{
+  let expected='';for(const mode of ['todo-tree','todo-date','project-detail','project-simple']){await boot(page,mode);expect(await page.locator('#helpNav [data-help-nav]').evaluateAll(nodes=>nodes.map(node=>node.textContent))).toEqual(['タスクを追加・編集する','ToDoモードで使う','Projectモードで使う','変化をAIで分析する','案件をAIで探索する','データを保存する','ショートカット']);const landing=await page.locator('[data-help-landing="true"]').innerText();if(!expected)expected=landing;else expect(landing).toBe(expected);await page.locator('[data-help-target="diff"]').click();expect(await page.locator('[data-help-section="diff"]').innerText()).toContain('AI分析用Markdown');await expect(page.locator('[data-help-nav="diff"]')).toHaveAttribute('aria-current','page')}
+});
+
+test('PBL048-HELP-07 Copilot Help matches prompt generation and does not claim ASANYA performs searches',async({page})=>{
+  await boot(page);const text=await sectionText(page,'copilot');for(const phrase of ['画面右端に縦向き','「Copilot」タブをクリック','Copilotサイドバーを開きます','タスク行をクリック','「選択タスク」にタイトル','期限・担当・状態・概要','検索キーワードを入力・調整','出力目的','検索対象','回答の長さ','自由指示','自動で更新','コピーアイコン','指示文をコピーしてCopilotへ貼り付けます','ASANYA内で資料検索は行いません'])expect(text).toContain(phrase);expect(text.indexOf('画面右端に縦向き')).toBeLessThan(text.indexOf('タスク行をクリック'));
+});
+
+test('PBL048-STACK-01 Copilot header close remains unobscured while its sidebar is open',async({page})=>{
+  await boot(page);await page.keyboard.press('Escape');await page.evaluate(()=>selectTask('ROOT'));await page.locator('#copilotTab').click();const panel=page.locator('#copilotPanel'),close=panel.locator('.cpHead button');await expect(panel).toHaveClass(/open/);await expect(close).toBeVisible();await expect(close).toBeInViewport();await expect(page.locator('#cpTitle')).toHaveText('ROOT');
+  const stacking=await page.evaluate(()=>{const panel=document.getElementById('copilotPanel'),help=document.getElementById('helpTrigger'),tab=document.getElementById('copilotTab'),close=panel.querySelector('.cpHead button'),r=close.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return{helpZ:Number(getComputedStyle(help).zIndex),panelZ:Number(getComputedStyle(panel).zIndex),tabZ:Number(getComputedStyle(tab).zIndex),closeReceivesPointer:hit===close||close.contains(hit),hit:hit?.id||hit?.className||hit?.tagName}});expect(stacking).toMatchObject({helpZ:1180,panelZ:1190,tabZ:1200});expect(stacking.closeReceivesPointer,JSON.stringify(stacking)).toBe(true);
+  await page.locator('#cpQuery').fill('予算確認');await expect(page.locator('#cpQuery')).toHaveValue('予算確認');await page.locator('input[name="cpIntent"][value="summary"]').check();await expect(page.locator('input[name="cpIntent"][value="summary"]')).toBeChecked();await close.click();await expect(panel).not.toHaveClass(/open/);await page.locator('#helpTrigger').click();await expect(page.locator('#helpPopover')).toBeVisible();await page.keyboard.press('Escape');await expect(page.locator('#helpPopover')).toBeHidden();
 });
 
 test('PBL048-SHORTCUT-01 Help and persistent guide synchronize Undo, Redo and task navigation without reviving Alt+M/I',async({page})=>{
@@ -81,6 +98,6 @@ test('PBL048-SHORTCUT-01 Help and persistent guide synchronize Undo, Redo and ta
 });
 
 test('PBL048-SCOPE-01 Help does not claim deferred or unreleased features',async({page})=>{
-  await boot(page,'project-detail');const help=await page.locator('#helpPopover').innerText();
+  await boot(page,'project-detail');let help='';for(const key of await page.locator('#helpNav [data-help-nav]').evaluateAll(nodes=>nodes.map(node=>node.dataset.helpNav))){await page.locator(`[data-help-nav="${key}"]`).click();help+=await page.locator(`[data-help-section="${key}"]`).innerText()}
   for(const text of ['クリティカルパス','依存線を表示','自動スケジューリング','Impact Level 0','兄弟タスクをドラッグ','概要編集欄を横へ移動'])expect(help).not.toContain(text);
 });

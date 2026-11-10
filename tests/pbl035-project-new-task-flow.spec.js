@@ -50,6 +50,78 @@ for(const display of ['project-detail','project-simple'])test(`PBL035-ROOT ${dis
   expect(await page.evaluate(id=>({due:itemById(id).due,planned:itemById(id).planned_duration_days,undo:undoStack.length}),id)).toEqual({due:'2026-09-20',planned:undefined,undo:before+1});
 });
 
+test('PBL035-PROJECT-SUMMARY-ENTER uncommitted top row commits title and Summary before leaving',async({page})=>{
+  await boot(page,'project-detail',[task('P'),task('Q',{sortOrder:2000})]);const before=await page.evaluate(()=>({count:data.items.length,undo:undoStack.length}));
+  await page.locator('#b_title').fill('Summary-first task');
+  expect(await page.evaluate(()=>({count:data.items.length,found:data.items.some(x=>x.title==='Summary-first task')}))).toEqual({count:before.count,found:false});
+  await page.locator('#b_summary').fill('Summary entered before Due');
+  expect(await page.evaluate(()=>data.items.some(x=>x.title==='Summary-first task'))).toBe(false);
+  await page.locator('#b_summary').press('Enter');
+  const id=await page.evaluate(()=>data.items.find(x=>x.title==='Summary-first task')?.id);expect(id).toBeTruthy();
+  await page.locator('.ganttRow[data-task-id="P"] .ganttTaskName').click();await page.locator('.ganttRow[data-task-id="Q"] .ganttTaskName').click();
+  expect(await page.evaluate(({id,before})=>({count:data.items.length,task:itemById(id)&&{title:itemById(id).title,summary:itemById(id).summary},persisted:persistableData().items.find(x=>x.id===id)?.summary,undoDelta:undoStack.length-before.undo}),{id,before})).toEqual({count:before.count+1,task:{title:'Summary-first task',summary:'Summary entered before Due'},persisted:'Summary entered before Due',undoDelta:1});
+  await page.keyboard.press('Control+z');expect(await page.evaluate(id=>!!itemById(id),id)).toBe(false);
+  await page.keyboard.press('Control+y');expect(await page.evaluate(id=>({title:itemById(id)?.title,summary:itemById(id)?.summary}),id)).toEqual({title:'Summary-first task',summary:'Summary entered before Due'});
+});
+
+test('PBL035-PROJECT-EXISTING-ROW-ENTER Summary Enter finalizes a same-level draft immediately',async({page})=>{
+  await boot(page,'project-detail',[task('P'),task('Q',{sortOrder:2000})]);await page.evaluate(()=>selectTask('P'));await page.keyboard.press('Enter');
+  const id=await page.evaluate(()=>draftTaskId),row=page.locator(`.ganttRow[data-task-id="${id}"]`);expect(id).toBeTruthy();await expect(row.locator('.ganttDraftTitle')).toBeVisible();
+  await row.locator('.ganttDraftTitle').fill('Sibling from Enter');await row.locator('.hierarchyDraftSummary').fill('Summary from Enter');await row.locator('.hierarchyDraftSummary').press('Enter');
+  expect(await page.evaluate(()=>({draftTaskId,draftStage}))).toEqual({draftTaskId:'',draftStage:''});
+  await page.locator('.ganttRow[data-task-id="Q"] .ganttTaskName').click();
+  expect(await page.evaluate(id=>({count:data.items.filter(x=>x.title==='Sibling from Enter').length,task:itemById(id)&&{parentId:itemById(id).parentId,title:itemById(id).title,summary:itemById(id).summary},serialized:persistableData().items.filter(x=>x.title==='Sibling from Enter').length}),id)).toEqual({count:1,task:{parentId:'',title:'Sibling from Enter',summary:'Summary from Enter'},serialized:1});
+  await page.keyboard.press('Control+z');expect(await page.evaluate(id=>!!itemById(id),id)).toBe(false);await page.keyboard.press('Control+y');expect(await page.evaluate(id=>({title:itemById(id)?.title,summary:itemById(id)?.summary}),id)).toEqual({title:'Sibling from Enter',summary:'Summary from Enter'});
+});
+
+function manyProjectTasks(count=40){return Array.from({length:count},(_,i)=>task(`P${String(i+1).padStart(2,'0')}`,{title:`Project task ${i+1}`,due:`2027-01-${String((i%28)+1).padStart(2,'0')}`,sortOrder:(i+1)*1000}))}
+
+async function expectVisibleProjectRow(page,id){
+  await expect.poll(()=>page.evaluate(id=>{const row=renderedTaskRow(id);if(!row)return false;const scroller=taskVerticalScroller(row),pageScroll=scroller===document.scrollingElement||scroller===document.documentElement||scroller===document.body,view=pageScroll?{top:0,bottom:innerHeight}:scroller.getBoundingClientRect(),header=document.querySelector('#ganttView .ganttHeader'),hr=header?.getBoundingClientRect(),visibleTop=hr&&hr.top<=view.top+1&&hr.bottom>view.top?Math.max(view.top,hr.bottom):view.top,rr=row.getBoundingClientRect();return rr.top>=visibleTop-1&&rr.bottom<=view.bottom+1},id)).toBe(true);
+}
+
+async function startSummaryFirstSibling(page,title){
+  await page.evaluate(()=>selectTask('P01'));await page.keyboard.press('Enter');const id=await page.evaluate(()=>draftTaskId);expect(id).toBeTruthy();const row=page.locator(`.ganttRow[data-task-id="${id}"]`);await row.locator('.ganttDraftTitle').fill(title);await row.locator('.hierarchyDraftSummary').fill(`Summary for ${title}`);await row.locator('.hierarchyDraftSummary').press('Enter');return id;
+}
+
+test('PBL035-PROJECT-AUTOFOLLOW empty Due follows the newly committed bottom row after sorting and preserves Undo/Redo',async({page})=>{
+  await boot(page,'project-detail',manyProjectTasks());const id=await startSummaryFirstSibling(page,'Auto-follow empty Due');
+  await expectVisibleProjectRow(page,id);
+  const result=await page.evaluate(id=>{const rowIds=[...document.querySelectorAll('#ganttView .ganttRow[data-task-id]')].map(row=>row.dataset.taskId);return{id:itemById(id)?.id,title:itemById(id)?.title,summary:itemById(id)?.summary,due:itemById(id)?.due,count:data.items.filter(x=>x.title==='Auto-follow empty Due').length,persisted:persistableData().items.filter(x=>x.id===id).length,lastRow:rowIds.at(-1),history:undoStack.length}},id);
+  expect(result).toMatchObject({id,title:'Auto-follow empty Due',summary:'Summary for Auto-follow empty Due',due:'',count:1,persisted:1,lastRow:id,history:1});
+  await page.keyboard.press('Control+z');expect(await page.evaluate(id=>!!itemById(id),id)).toBe(false);await page.keyboard.press('Control+y');expect(await page.evaluate(id=>({title:itemById(id)?.title,summary:itemById(id)?.summary,due:itemById(id)?.due}),id)).toEqual({title:'Auto-follow empty Due',summary:'Summary for Auto-follow empty Due',due:''});
+});
+
+test('PBL035-PROJECT-AUTOFOLLOW valid Due follows the same Task ID at its normal sorted position',async({page})=>{
+  await boot(page,'project-detail',manyProjectTasks());
+  await page.evaluate(()=>selectTask('P01'));await page.keyboard.press('Enter');const id=await page.evaluate(()=>draftTaskId);expect(id).toBeTruthy();await page.evaluate(id=>{itemById(id).due='2028-12-31'},id);
+  const row=page.locator(`.ganttRow[data-task-id="${id}"]`);await row.locator('.ganttDraftTitle').fill('Auto-follow valid Due');await row.locator('.hierarchyDraftSummary').fill('Summary for valid Due');await row.locator('.hierarchyDraftSummary').press('Enter');
+  await expectVisibleProjectRow(page,id);
+  expect(await page.evaluate(id=>{const rows=[...document.querySelectorAll('#ganttView .ganttRow[data-task-id]')];return{id:itemById(id)?.id,due:itemById(id)?.due,title:itemById(id)?.title,summary:itemById(id)?.summary,count:data.items.filter(x=>x.title==='Auto-follow valid Due').length,lastRow:rows.at(-1)?.dataset.taskId}},id)).toEqual({id,due:'2028-12-31',title:'Auto-follow valid Due',summary:'Summary for valid Due',count:1,lastRow:id});
+});
+
+test('PBL035-PROJECT-SUMMARY-LEAVE composition-confirmed Summary survives immediate selection of another row',async({page})=>{
+  await boot(page,'project-detail');await page.locator('#b_title').fill('Summary composition task');const summary=page.locator('#b_summary');await summary.fill('日本語の概要');
+  await summary.evaluate(el=>{el.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true,data:''}));el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:229,which:229,isComposing:true,bubbles:true,cancelable:true}));el.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:'日本語の概要'}))});
+  expect(await page.evaluate(()=>data.items.some(x=>x.title==='Summary composition task'))).toBe(false);
+  await page.locator('.ganttRow[data-task-id="P"] .ganttTaskName').click();await expect.poll(()=>page.evaluate(()=>data.items.some(x=>x.title==='Summary composition task'))).toBe(true);
+  const created=await page.evaluate(()=>data.items.find(x=>x.title==='Summary composition task'));
+  expect(created.summary).toBe('日本語の概要');
+});
+
+test('PBL035-PROJECT-TOP-DRAFT invalid entered Due blocks row selection without discarding fields',async({page})=>{
+  await boot(page,'project-detail');let dialogs=0;page.on('dialog',async dialog=>{dialogs++;await dialog.dismiss()});
+  await page.locator('#b_title').fill('Invalid due draft');await page.locator('#b_due').fill('not a date');await page.locator('#b_summary').fill('Keep this Summary');
+  await page.locator('.ganttRow[data-task-id="P"] .ganttTaskName').click();
+  expect(dialogs).toBeLessThanOrEqual(1);expect(await page.evaluate(()=>({draft:document.getElementById('blank')?.id,title:document.getElementById('b_title')?.value,due:document.getElementById('b_due')?.value,summary:document.getElementById('b_summary')?.value,selected:selectedTaskId,created:data.items.some(x=>x.title==='Invalid due draft')}))).toEqual({draft:'blank',title:'Invalid due draft',due:'not a date',summary:'Keep this Summary',selected:'P',created:false});
+});
+
+test('PBL035-PROJECT-TOP-DRAFT invalid planned duration blocks row selection without discarding fields',async({page})=>{
+  await boot(page,'project-detail');await page.locator('#b_title').fill('Invalid planned draft');await page.locator('#b_planned').fill('1.5');await page.locator('#b_summary').fill('Keep this Summary');
+  await page.locator('.ganttRow[data-task-id="P"] .ganttTaskName').click();
+  expect(await page.evaluate(()=>({draft:document.getElementById('blank')?.id,title:document.getElementById('b_title')?.value,planned:document.getElementById('b_planned')?.value,summary:document.getElementById('b_summary')?.value,selected:selectedTaskId,created:data.items.some(x=>x.title==='Invalid planned draft')}))).toEqual({draft:'blank',title:'Invalid planned draft',planned:'1.5',summary:'Keep this Summary',selected:'P',created:false});
+});
+
 test('PBL035-CHILD collapsed parent expands and child finishes after Due',async({page})=>{
   await boot(page,'project-detail',[task('P'),task('OLD',{parentId:'P'})]);
   await page.locator('.ganttRow[data-task-id="P"] .projectHierarchyDisclosure').click();

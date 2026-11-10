@@ -30,6 +30,11 @@ test('V211-IME-B: full-width composition no-sort waits for compositionend and co
   expect(await page.evaluate(()=>({due:itemById('TARGET').due,index:displaySortIndex('TARGET'),trace:__imeHotfixTrace,y:scrollY,pending:dueImeShortcutPending,history:undoStack.length}))).toEqual({due:await page.evaluate(()=>addDays(ymd(),1)),index:before.index,trace:{save:1,render:1},y:before.y,pending:null,history:1});await expect(row).not.toHaveClass(/sortMoveAnimating/);
 });
 
+test('V211-IME-H: full-width shortcut removes the editor without leaving composition text in the visible Due cell',async({page})=>{
+  const{row,input}=await boot(page);await composeShortcut(input,'ｄ','１');expect(await page.evaluate(()=>itemById('TARGET').due)).toBe('');await input.dispatchEvent('compositionend',{data:'１'});await expect.poll(()=>page.evaluate(()=>itemById('TARGET').due)).toBe(await page.evaluate(()=>addDays(ymd(),1)));await expect(input).toBeHidden();
+  const visible=await row.locator('.ganttDue').innerText();expect(visible).not.toContain('ｄ');expect(visible).not.toContain('１');expect(visible).toContain(await page.evaluate(()=>dueLab(addDays(ymd(),1))));expect(await page.evaluate(()=>dueImeShortcutPending)).toBe(null);
+});
+
 test('V211-IME-C: full-width composition sort-move starts normal FLIP without premature scroll',async({page})=>{
   const{row,input}=await boot(page,{sortMove:true});await beginTrace(page);const before=await page.evaluate(()=>({y:scrollY,index:displaySortIndex('TARGET')}));await composeShortcut(input,'Ｄ','９');expect(await page.evaluate(()=>({trace:__imeHotfixTrace,index:displaySortIndex('TARGET'),y:scrollY}))).toEqual({trace:{save:0,render:0},index:before.index,y:before.y});
   await input.dispatchEvent('compositionend',{data:'９'});await expect.poll(()=>page.evaluate(()=>__imeHotfixTrace.save)).toBe(1);expect(await page.evaluate(beforeIndex=>({due:itemById('TARGET').due,moved:displaySortIndex('TARGET')!==beforeIndex,trace:__imeHotfixTrace,y:scrollY}),before.index)).toEqual({due:await page.evaluate(()=>addDays(ymd(),9)),moved:true,trace:{save:1,render:1},y:before.y});await expect(row).toHaveClass(/sortMoveAnimating/);

@@ -18,7 +18,7 @@ test('PBL033-CORE-02 disclosure is separate, accessible, parent-only, and UI-onl
 });
 
 test('PBL033-FOLLOWUP-01 contextual Help explains hierarchy disclosure',async({page})=>{
-  await boot(page);await page.locator('#helpTrigger').click();await expect(page.locator('[data-help-section="todo"]')).toContainText('▶ / ▼：親タスクの子・孫タスクを展開／折りたたみ');
+  await boot(page);await page.locator('#helpTrigger').click();await page.locator('[data-help-nav="todo"]').click();await expect(page.locator('[data-help-section="todo"]')).toContainText('▶ / ▼');await expect(page.locator('[data-help-section="todo"]')).toContainText('展開／折りたたみます');
 });
 
 test('PBL033-FOLLOWUP-02 Help returns top-right while Search and Move swap KPI positions',async({page})=>{
